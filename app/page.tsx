@@ -32,7 +32,7 @@ export default function HomePage() {
           <div className="hero-actions">
             {packages[0] && (
               <Link
-                href={`/docs/${packages[0].slug}/v${packages[0].latestVersion}/introduction`}
+                href={`/docs/${packages[0].slug}/v${packages[0].latestVersion}/en/introduction`}
                 className="btn-primary"
                 id="get-started-btn"
               >
