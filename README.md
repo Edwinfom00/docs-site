@@ -8,17 +8,17 @@ A modern, production-grade documentation platform for open-source TypeScript pac
 
 ## Features
 
-- **📖 Multi-Package Support** — Host documentation for multiple packages with independent versioning
-- **🌍 Multi-Language Support** — Built-in internationalization (i18n) with English (en) and French (fr)
-- **📚 Version Management** — Display and navigate between multiple package versions seamlessly
-- **🎨 Modern UI/UX** — Beautiful, responsive design with dark mode support via `next-themes`
-- **📝 MDX Content** — Write documentation using Markdown + JSX for interactive docs
-- **🔍 Full-Text Search** — SearchModal component for discovering documentation content
-- **💡 Syntax Highlighting** — Beautiful code blocks with `rehype-pretty-code` and Shiki
-- **📖 Table of Contents** — Auto-generated navigation for long documentation pages
-- **⚡ Performance Optimized** — Next.js 16 App Router with optimized font loading and bundle analysis
-- **🎯 SEO Ready** — Built-in OpenGraph metadata and semantic HTML structure
-- **📱 Responsive Design** — Mobile-first approach with Tailwind CSS 4
+- **Multi-Package Support** — Host documentation for multiple packages with independent versioning
+- **Multi-Language Support** — Built-in internationalization (i18n) with English (en) and French (fr)
+- **Version Management** — Display and navigate between multiple package versions seamlessly
+- **Modern UI/UX** — Beautiful, responsive design with dark mode support via `next-themes`
+- ** MDX Content** — Write documentation using Markdown + JSX for interactive docs
+- **Full-Text Search** — SearchModal component for discovering documentation content
+- **Syntax Highlighting** — Beautiful code blocks with `rehype-pretty-code` and Shiki
+- **Table of Contents** — Auto-generated navigation for long documentation pages
+- **Performance Optimized** — Next.js 16 App Router with optimized font loading and bundle analysis
+- **SEO Ready** — Built-in OpenGraph metadata and semantic HTML structure
+- **Responsive Design** — Mobile-first approach with Tailwind CSS 4
 
 ---
 
@@ -332,9 +332,9 @@ A security middleware for AI API responses with:
 - ✅ Audit logging
 - ✅ Content policy validation
 
-📖 [View Documentation](http://localhost:3000/docs/ai-guard)  
-📦 [NPM Package](https://www.npmjs.com/package/@edwinfom/ai-guard)  
-💻 [GitHub Repository](https://github.com/Edwinfom00/ai-guard)
+[View Documentation](http://localhost:3000/docs/ai-guard)  
+[NPM Package](https://www.npmjs.com/package/@edwinfom/ai-guard)  
+[GitHub Repository](https://github.com/Edwinfom00/ai-guard)
 
 ---
 
