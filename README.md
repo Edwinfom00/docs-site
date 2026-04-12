@@ -133,7 +133,7 @@ npm start
 
 ---
 
-## 📖 How to Add Documentation
+## How to Add Documentation
 
 ### 1. Create Package Directory
 
