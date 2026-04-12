@@ -1,0 +1,81 @@
+---
+title: Politique de Contenu
+description: Détectez et bloquez les contenus toxiques, haineux, violents et nuisibles à la fois dans les entrées utilisateur et les sorties IA.
+---
+
+# Politique de Contenu
+
+Détecte et bloque les catégories de contenu nuisible en utilisant la correspondance de modèles et l'analyse sémantique. S'applique à la fois au prompt de l'utilisateur (entrée) et à la réponse de l'IA (sortie).
+
+```typescript
+const guard = new Guardian({
+  content: {
+    enabled:     true,
+    sensitivity: 'medium',
+    categories: {
+      toxicity:    true,  // Langage offensant, insultes
+      hate:        true,  // Discours de haine ciblant des groupes protégés
+      violence:    true,  // Menaces, violence graphique
+      selfHarm:    true,  // Contenu encourageant l'automutilation
+      sexual:      false, // Contenu sexuel explicite (désactivé par défaut)
+    },
+  },
+});
+```
+
+## Configuration
+
+| Option | Type | Défaut | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | Activer la politique de contenu |
+| `sensitivity` | `'low' \| 'medium' \| 'high'` | `'medium'` | Agressivité de la détection |
+| `onInput` | `boolean` | `true` | Vérifier les prompts utilisateur |
+| `onOutput` | `boolean` | `true` | Vérifier les réponses de l'IA |
+| `categories.toxicity` | `boolean` | `true` | Langage offensant / toxique |
+| `categories.hate` | `boolean` | `true` | Discours de haine |
+| `categories.violence` | `boolean` | `true` | Contenu violent / menaces |
+| `categories.selfHarm` | `boolean` | `true` | Encouragement à l'automutilation |
+| `categories.sexual` | `boolean` | `false` | Contenu sexuel explicite |
+
+## Exemple
+
+```typescript
+try {
+  await guard.protect(callFn, '[prompt nuisible]');
+} catch (err) {
+  if (err instanceof ContentPolicyError) {
+    console.log(err.code);              // 'CONTENT_POLICY_VIOLATION'
+    console.log(err.context.category);  // 'toxicity'
+    console.log(err.context.score);     // 0.91
+    console.log(err.context.direction); // 'input' | 'output'
+
+    // Renvoyer une réponse sécurisée à l'utilisateur
+    return Response.json({
+      error: 'Votre message enfreint notre politique de contenu.'
+    }, { status: 400 });
+  }
+}
+```
+
+## Métadonnées du Résultat
+
+```typescript
+const result = await guard.protect(callFn, safePrompt);
+console.log(result.meta.contentPolicy);
+// {
+//   passed: true,
+//   inputScore: { toxicity: 0.02, hate: 0.01, violence: 0.0, selfHarm: 0.0, sexual: 0.0 },
+//   outputScore: { toxicity: 0.01, hate: 0.0, violence: 0.0, selfHarm: 0.0, sexual: 0.0 }
+// }
+```
+
+## Utilisation Autonome
+
+```typescript
+import { analyzeContent } from '@edwinfom/ai-guard/content';
+
+const report = await analyzeContent('Je déteste tous les gens de [groupe]', {
+  categories: { hate: true },
+});
+// { violations: [{ category: 'hate', score: 0.94, severity: 'high' }] }
+```

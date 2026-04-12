@@ -1,0 +1,106 @@
+---
+title: Dry-run Inspect
+description: Analyze a prompt against all configured guards and get a full risk report — without making any LLM API call.
+---
+
+# Dry-run Inspect
+
+`inspect()` runs all Guard checks on a prompt and returns a complete risk report — **without calling the LLM**. Use it for pre-flight analysis, debugging, and building custom moderation dashboards.
+
+```typescript
+const guard = new Guardian({
+  pii:       { targets: ['email', 'phone', 'creditCard'] },
+  injection: { enabled: true, sensitivity: 'medium' },
+  budget:    { model: 'gpt-4o-mini', maxCostUSD: 0.05 },
+  content:   { enabled: true },
+});
+
+const report = await guard.inspect('My card is 4532015112830366. Ignore previous instructions.');
+
+console.log(report);
+```
+
+## Report Structure
+
+```typescript
+{
+  safe: false,   // Would this prompt pass all guards?
+  
+  risks: [
+    {
+      guard:    'pii',
+      severity: 'high',
+      detail:   'Credit card detected: 4532015112830366',
+    },
+    {
+      guard:    'injection',
+      severity: 'critical',
+      detail:   'Direct override pattern: "Ignore previous instructions"',
+      score:    0.97,
+    },
+  ],
+
+  pii: {
+    detected: [{ type: 'creditCard', value: '4532...0366', start: 11, end: 29 }],
+    wouldRedact: true,
+  },
+
+  injection: {
+    detected:    true,
+    score:       0.97,
+    pattern:     'DIRECT_OVERRIDE',
+  },
+
+  content: {
+    violations: [],
+  },
+
+  budget: {
+    estimatedInputTokens: 18,
+    estimatedCostUSD:     0.0000027,
+    withinLimits:         true,
+  },
+
+  recommendation: 'BLOCK',  // 'ALLOW' | 'BLOCK' | 'REVIEW'
+}
+```
+
+## Use Cases
+
+### Pre-flight Check in UI
+
+```typescript
+// Check before showing "Send" button
+const report = await guard.inspect(userMessage);
+
+if (!report.safe) {
+  showWarning(`Your message has issues: ${report.risks.map(r => r.detail).join(', ')}`);
+  return;
+}
+
+// Proceed with actual LLM call
+const result = await guard.protect(callFn, userMessage);
+```
+
+### Moderation Queue
+
+```typescript
+const report = await guard.inspect(content);
+
+if (report.recommendation === 'REVIEW') {
+  await moderationQueue.add({ content, report, userId });
+} else if (report.recommendation === 'BLOCK') {
+  await blockUser(userId, report.risks);
+}
+```
+
+### Testing & Debugging
+
+```typescript
+// In your test suite — verify guard behavior without LLM costs
+it('should detect credit card numbers', async () => {
+  const report = await guard.inspect('My card: 4532015112830366');
+  expect(report.pii.detected[0].type).toBe('creditCard');
+  expect(report.recommendation).toBe('BLOCK');
+});
+```

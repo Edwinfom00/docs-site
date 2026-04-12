@@ -1,0 +1,49 @@
+[
+  {
+    "title": "Getting Started",
+    "items": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Installation", "slug": "installation" },
+      { "title": "Quick Start", "slug": "quick-start" }
+    ]
+  },
+  {
+    "title": "Core Features",
+    "items": [
+      { "title": "Schema Enforcement", "slug": "schema-enforcement" },
+      { "title": "PII Redaction", "slug": "pii-redaction" },
+      { "title": "Prompt Injection", "slug": "prompt-injection" },
+      { "title": "Canary Tokens", "slug": "canary-tokens" },
+      { "title": "Content Policy", "slug": "content-policy" },
+      { "title": "Hallucination Detection", "slug": "hallucination-detection" },
+      { "title": "Budget Sentinel", "slug": "budget-sentinel" },
+      { "title": "Rate Limiter", "slug": "rate-limiter" }
+    ]
+  },
+  {
+    "title": "Advanced",
+    "items": [
+      { "title": "Audit Log", "slug": "audit-log" },
+      { "title": "Streaming Support", "slug": "streaming" },
+      { "title": "Dry-run Inspect", "slug": "inspect" },
+      { "title": "Tree-Shakeable Sub-paths", "slug": "tree-shaking" },
+      { "title": "Custom Adapter", "slug": "custom-adapter" }
+    ]
+  },
+  {
+    "title": "Integrations",
+    "items": [
+      { "title": "Vercel AI SDK", "slug": "vercel-adapter" },
+      { "title": "LangChain", "slug": "langchain-adapter" },
+      { "title": "Next.js Example", "slug": "nextjs-example" }
+    ]
+  },
+  {
+    "title": "Reference",
+    "items": [
+      { "title": "API Reference", "slug": "api-reference" },
+      { "title": "Error Types", "slug": "error-types" },
+      { "title": "Changelog", "slug": "changelog" }
+    ]
+  }
+]

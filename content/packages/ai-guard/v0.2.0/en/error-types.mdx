@@ -1,0 +1,54 @@
+---
+title: Error Types
+description: All error types exported by @edwinfom/ai-guard — GuardianError, SchemaValidationError, PIIError, InjectionError, BudgetError.
+---
+
+# Error Types
+
+```typescript
+import {
+  GuardianError,         // Base — all errors extend this
+  SchemaValidationError, // repair failed after all attempts
+  PIIError,              // PII detected (if configured to throw)
+  InjectionError,        // prompt injection detected
+  BudgetError,           // token or cost limit exceeded
+} from '@edwinfom/ai-guard';
+
+// All errors have:
+err.code;     // 'SCHEMA_REPAIR_FAILED' | 'PROMPT_INJECTION_DETECTED' | 'BUDGET_EXCEEDED'
+              // | 'CONTENT_POLICY_VIOLATION' | 'HALLUCINATION_SUSPECTED'
+              // | 'RATE_LIMIT_EXCEEDED' | 'RETRY_LIMIT_EXCEEDED'
+err.context;  // detailed object with failure context
+```
+
+## Error Codes
+
+| Code | Error Class | Thrown When |
+|---|---|---|
+| `SCHEMA_REPAIR_FAILED` | `SchemaValidationError` | All 3 repair levels failed |
+| `PROMPT_INJECTION_DETECTED` | `InjectionError` | Injection score exceeds threshold |
+| `BUDGET_EXCEEDED` | `BudgetError` | Token or cost limit hit |
+| `CONTENT_POLICY_VIOLATION` | `GuardianError` | Harmful content detected |
+| `HALLUCINATION_SUSPECTED` | `GuardianError` | Grounding check failed (if `throwOnDetection: true`) |
+| `RATE_LIMIT_EXCEEDED` | `GuardianError` | Request rate limit hit |
+| `RETRY_LIMIT_EXCEEDED` | `GuardianError` | Max retries exhausted |
+
+## Handling Errors
+
+```typescript
+import { Guardian, InjectionError, BudgetError, GuardianError } from '@edwinfom/ai-guard';
+
+try {
+  const result = await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof InjectionError)
+    return Response.json({ error: 'Invalid request.' }, { status: 400 });
+  if (err instanceof BudgetError)
+    return Response.json({ error: 'Service temporarily limited.' }, { status: 429 });
+  if (err instanceof GuardianError && err.code === 'RATE_LIMIT_EXCEEDED')
+    return Response.json({ error: 'Too many requests.' }, { status: 429 });
+  if (err instanceof GuardianError && err.code === 'CONTENT_POLICY_VIOLATION')
+    return Response.json({ error: 'Content not allowed.' }, { status: 400 });
+  throw err; // re-throw unknown errors
+}
+```

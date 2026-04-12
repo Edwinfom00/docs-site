@@ -1,0 +1,59 @@
+---
+title: Quick Start
+description: Get up and running with @edwinfom/ai-guard in minutes.
+---
+
+# Quick Start
+
+## Zero-config usage
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+
+// Zero config — normalizes provider response, nothing blocked
+const guard = new Guardian();
+const result = await guard.protect(
+  () => openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [...] }),
+  userPrompt
+);
+console.log(result.raw); // clean text output
+```
+
+## Full example with all protections
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+import { z } from 'zod';
+
+const guard = new Guardian({
+  pii:          { onInput: true, onOutput: true },
+  schema:       { validator: z.object({ city: z.string(), temp: z.number() }), repair: 'retry' },
+  injection:    { enabled: true, sensitivity: 'medium' },
+  content:      { enabled: true, sensitivity: 'medium' },
+  canary:       { enabled: true },
+  hallucination:{ sources: [ragDocument1, ragDocument2] },
+  budget:       { maxTokens: 2000, maxCostUSD: 0.05, model: 'gpt-4o-mini' },
+  rateLimit:    { maxRequests: 10, windowMs: 60_000, keyFn: (p) => getUserId(p) },
+  onAudit:      (entry) => logger.info(entry),
+});
+
+const result = await guard.protect(
+  (safePrompt) => openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: safePrompt }]
+  }),
+  userPrompt
+);
+
+console.log(result.data);              // typed by your Zod schema
+console.log(result.meta.budget);       // { totalTokens: 312, estimatedCostUSD: 0.000047 }
+console.log(result.meta.piiRedacted);  // [{ type: 'email', value: 'user@...', ... }]
+console.log(result.meta.canaryLeaked); // false
+```
+
+## Next Steps
+
+- Learn about [Schema Enforcement](/docs/ai-guard/v0.2.0/schema-enforcement) — 3-level JSON repair pipeline
+- Set up [PII Redaction](/docs/ai-guard/v0.2.0/pii-redaction) — protect user data in both directions
+- Enable [Prompt Injection Detection](/docs/ai-guard/v0.2.0/prompt-injection) — block attacks at the gate
+- Configure [Budget Sentinel](/docs/ai-guard/v0.2.0/budget-sentinel) — prevent surprise bills

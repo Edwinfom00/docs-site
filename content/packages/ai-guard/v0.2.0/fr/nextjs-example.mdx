@@ -1,0 +1,227 @@
+---
+title: Exemple Next.js
+description: Route API Next.js complète prête pour la production avec toutes les protections Guard activées.
+---
+
+# Exemple Next.js
+
+Une route API Next.js 15 complète et prête pour la production avec Guard protégeant chaque couche — PII, injection, schéma, budget, limitation de taux et journal d'audit.
+
+## Structure du Projet
+
+```text
+app/
+├── api/
+│   └── chat/
+│       └── route.ts        ← Route IA avec Guard
+├── lib/
+│   └── guard.ts            ← Instance de Guardian partagée
+└── components/
+    └── Chat.tsx            ← Composant Frontend
+```
+
+## Instance de Guardian Partagée
+
+```typescript
+// lib/guard.ts
+import { Guardian } from '@edwinfom/ai-guard';
+import { z } from 'zod';
+import { db } from './db';
+
+export const ResponseSchema = z.object({
+  answer:     z.string(),
+  sources:    z.array(z.string()).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+export const guard = new Guardian({
+  pii: {
+    targets:  ['email', 'phone', 'creditCard', 'ssn', 'iban'],
+    onInput:  true,
+    onOutput: true,
+  },
+  schema: {
+    validator: ResponseSchema,
+    repair:    true,
+  },
+  injection: {
+    enabled:     true,
+    sensitivity: 'medium',
+  },
+  canary: {
+    enabled:      true,
+    throwOnLeak:  true,
+  },
+  content: {
+    enabled:    true,
+    categories: { toxicity: true, hate: true, violence: true, selfHarm: true },
+  },
+  budget: {
+    model:      'gpt-4o-mini',
+    maxCostUSD: 0.05,
+    maxTokens:  3000,
+    onWarning:  (usage) => console.warn('Avertissement de budget:', usage),
+  },
+  rateLimit: {
+    maxRequests: 20,
+    windowMs:    60_000,
+    keyFn:       (_, ctx) => ctx?.userId ?? 'anonymous',
+  },
+  onAudit: async (entry) => {
+    await db.insert('ai_audit_log').values({
+      request_id:   entry.requestId,
+      timestamp:    new Date(entry.timestamp),
+      passed:       entry.passed,
+      blocked_by:   entry.blockedBy,
+      total_tokens: entry.meta.budget?.totalTokens ?? 0,
+      cost_usd:     entry.meta.budget?.estimatedCostUSD ?? 0,
+    });
+  },
+});
+```
+
+## Route API
+
+```typescript
+// app/api/chat/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import OpenAI from 'openai';
+import { auth } from '@/lib/auth';
+import { guard, ResponseSchema } from '@/lib/guard';
+import {
+  InjectionError,
+  PiiError,
+  BudgetError,
+  RateLimitError,
+  ContentPolicyError,
+  CanaryError,
+} from '@edwinfom/ai-guard';
+
+const openai = new OpenAI();
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  }
+
+  const { message } = await req.json();
+  if (!message?.trim()) {
+    return NextResponse.json({ error: 'Le message est requis' }, { status: 400 });
+  }
+
+  try {
+    const result = await guard.protect(
+      (safePrompt) =>
+        openai.chat.completions.create({
+          model:    'gpt-4o-mini',
+          messages: [
+            {
+              role:    'system',
+              content: 'Tu es un assistant utile. Réponds toujours au format JSON.',
+            },
+            { role: 'user', content: safePrompt },
+          ],
+          response_format: { type: 'json_object' },
+        }),
+      message,
+      { userId: session.user.id }
+    );
+
+    return NextResponse.json({
+      data:    result.data,
+      meta: {
+        tokens:    result.meta.budget?.totalTokens,
+        cost:      result.meta.budget?.estimatedCostUSD,
+        piiFound:  result.meta.piiRedacted?.length ?? 0,
+      },
+    });
+
+  } catch (err) {
+    // Gérer les erreurs Guard spécifiques
+    if (err instanceof InjectionError)     return NextResponse.json({ error: 'Message bloqué : violation de sécurité.' },            { status: 400 });
+    if (err instanceof ContentPolicyError) return NextResponse.json({ error: 'Message bloqué : violation de politique de contenu.' },      { status: 400 });
+    if (err instanceof CanaryError)        return NextResponse.json({ error: 'Alerte de sécurité : prompt système compromis.' },      { status: 400 });
+    if (err instanceof RateLimitError)     return NextResponse.json({ error: 'Trop de requêtes. Veuillez patienter.' },                 { status: 429 });
+    if (err instanceof BudgetError)        return NextResponse.json({ error: 'Service temporairement indisponible.' },                { status: 503 });
+
+    console.error('Erreur inattendue:', err);
+    return NextResponse.json({ error: 'Erreur interne du serveur.' }, { status: 500 });
+  }
+}
+```
+
+## Composant Frontend
+
+```typescript
+// components/Chat.tsx
+'use client';
+import { useState } from 'react';
+
+export default function Chat() {
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    setError(null);
+    setLoading(true);
+
+    const userMsg = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.error);
+        return;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: json.data.answer },
+      ]);
+    } catch {
+      setError('Erreur réseau. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      <div className="messages">
+        {messages.map((m, i) => (
+          <div key={i} className={`message message--${m.role}`}>
+            {m.content}
+          </div>
+        ))}
+        {loading && <div className="message message--loading">Réflexion en cours...</div>}
+        {error && <div className="message message--error">{error}</div>}
+      </div>
+      <div className="input-area">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !loading && sendMessage()}
+          placeholder="Demander n'importe quoi..."
+          disabled={loading}
+        />
+        <button onClick={sendMessage} disabled={loading || !input.trim()}>
+          Envoyer
+        </button>
+      </div>
+    </div>
+  );
+}
+```

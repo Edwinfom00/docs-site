@@ -1,0 +1,99 @@
+---
+title: Prise en charge du Streaming
+description: Appliquez toutes les protections Guard aux réponses IA diffusées en continu à l'aide de protectStream().
+---
+
+# Prise en charge du Streaming
+
+`protectStream()` enveloppe les appels IA en streaming avec une protection Guard complète. Il met le flux en mémoire tampon, applique toutes les vérifications à la réponse complète, puis la rediffuse au client si tout est validé.
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+import OpenAI from 'openai';
+
+const openai = new OpenAI();
+const guard = new Guardian({
+  pii:       { targets: ['email', 'phone'], onOutput: true },
+  injection: { enabled: true },
+  budget:    { model: 'gpt-4o-mini', maxCostUSD: 0.05 },
+});
+
+// Gestionnaire de Route Next.js
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const stream = await guard.protectStream(
+    (safePrompt) =>
+      openai.chat.completions.create({
+        model:  'gpt-4o-mini',
+        stream: true,
+        messages: [{ role: 'user', content: safePrompt }],
+      }),
+    prompt
+  );
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+```
+
+## Comment Ça Marche
+
+```text
+Prompt utilisateur → [Vérifs entrée] → LLM (flux/stream)
+                                           ↓
+                               Mise en mémoire tampon (Chunks)
+                                           ↓
+                                  [Vérifs sortie]
+                                           ↓
+                                ✅ Rediffusion au client
+                                ❌ Bloqué & lève une erreur
+```
+
+## Avec le Vercel AI SDK
+
+```typescript
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { guardVercelStream } from '@edwinfom/ai-guard/vercel';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const lastMessage = messages[messages.length - 1].content;
+
+  const stream = await guard.protectStream(
+    (safePrompt) => streamText({
+      model:    openai('gpt-4o-mini'),
+      messages: [{ role: 'user', content: safePrompt }],
+    }),
+    lastMessage
+  );
+
+  return guardVercelStream(stream);
+}
+```
+
+## Événements de Streaming
+
+Écoutez les événements de guard pendant le streaming :
+
+```typescript
+const stream = await guard.protectStream(callFn, prompt, {
+  onChunk: (chunk) => {
+    // Appelé pour chaque morceau diffusé (après le passage des vérifs de sortie)
+  },
+  onComplete: (result) => {
+    console.log(result.meta);  // Métadonnées complètes après la fin du stream
+  },
+  onError: (err) => {
+    // Le flux (stream) a été bloqué par Guard
+  },
+});
+```
+
+## Limitations
+
+Le streaming nécessite la mise en mémoire tampon de la réponse complète avant la rediffusion, ce qui ajoute une petite surcharge de latence équivalente au temps jusqu'au dernier token du modèle. Pour les cas d'utilisation où la latence est critique, préférez `protect()`.
+
+Le caviardage PII en sortie est particulièrement puissant avec le streaming, car l'utilisateur ne voit jamais la réponse brute — seulement la version expurgée.

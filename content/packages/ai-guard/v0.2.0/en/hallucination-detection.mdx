@@ -1,0 +1,94 @@
+---
+title: Hallucination Detection
+description: Ground-check AI responses against your source documents to catch facts that don't exist in your RAG context.
+---
+
+# Hallucination Detection
+
+Verifies that named entities (people, places, organizations, dates, numbers) in the AI's response actually appear in your source documents. Catches **AI hallucinations** in RAG pipelines before they reach users.
+
+```typescript
+const guard = new Guardian({
+  hallucination: {
+    sources: [ragDocument1, ragDocument2, ragDocument3],
+    // Named entities in the response must appear in at least one source
+    threshold: 0.7,  // 70% of entities must be grounded (default: 0.8)
+  },
+});
+
+const result = await guard.protect(callFn, userQuery);
+console.log(result.meta.hallucination);
+// {
+//   passed: true,
+//   groundingScore: 0.93,
+//   ungroupedEntities: [],     // ← good, all entities found in sources
+// }
+```
+
+## How It Works
+
+1. AI generates a response
+2. Guard extracts named entities using NER (Name Entity Recognition)
+3. Each entity is checked against your source documents
+4. A **grounding score** (0–1) is calculated
+5. If score < threshold → `HallucinationError` is thrown
+
+```typescript
+// Example: AI claims "The report was authored by Dr. Smith in 2019"
+// If "Dr. Smith" and "2019" are not in the sources → hallucination detected
+
+const result = await guard.protect(async (prompt) => {
+  return openai.chat.completions.create({ /* ... */ });
+}, userQuery);
+
+console.log(result.meta.hallucination.groundingScore); // 0.5 (risky)
+console.log(result.meta.hallucination.ungroupedEntities);
+// ['Dr. Smith', '2019'] ← these were not in your sources
+```
+
+## Dynamic Sources
+
+Sources can be retrieved dynamically per request:
+
+```typescript
+const guard = new Guardian({
+  hallucination: {
+    // Function that returns sources based on the prompt
+    getSources: async (prompt) => {
+      return await vectorDb.search(prompt, { topK: 5 });
+    },
+    threshold: 0.75,
+  },
+});
+```
+
+## Error Handling
+
+```typescript
+import { HallucinationError } from '@edwinfom/ai-guard';
+
+try {
+  await guard.protect(callFn, query);
+} catch (err) {
+  if (err instanceof HallucinationError) {
+    console.log(err.code);                       // 'HALLUCINATION_DETECTED'
+    console.log(err.context.groundingScore);     // 0.42
+    console.log(err.context.ungroupedEntities);  // ['entity1', 'entity2']
+
+    // Fallback: return a safe "I don't know" response
+    return { answer: 'I could not find reliable information about this.' };
+  }
+}
+```
+
+## Standalone Usage
+
+```typescript
+import { checkGrounding } from '@edwinfom/ai-guard/hallucination';
+
+const result = checkGrounding(
+  'The Eiffel Tower was built in 1887 by Gustave Eiffel.',
+  ['The Eiffel Tower construction began in 1887. It was designed by Alexandre Gustave Eiffel.']
+);
+// { groundingScore: 0.95, ungroupedEntities: [] }
+```

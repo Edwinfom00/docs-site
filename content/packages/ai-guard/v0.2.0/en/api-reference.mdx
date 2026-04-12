@@ -1,0 +1,66 @@
+---
+title: API Reference
+description: Complete API reference for @edwinfom/ai-guard — Guardian class, protect(), protectStream(), and inspect() methods.
+---
+
+# API Reference
+
+## `new Guardian<T>(config?, adapter?)`
+
+| Option | Type | Description |
+|---|---|---|
+| `config.pii` | `PIIConfig` | PII redaction (input + output) |
+| `config.schema` | `SchemaConfig<T>` | Schema validation + 3-level repair |
+| `config.injection` | `InjectionConfig` | Prompt injection detection |
+| `config.content` | `ContentConfig` | Content policy (toxicity, hate, violence…) |
+| `config.canary` | `CanaryConfig` | System prompt leak detection |
+| `config.hallucination` | `HallucinationConfig` | RAG grounding check |
+| `config.budget` | `BudgetConfig` | Token/cost limits |
+| `config.rateLimit` | `RateLimitConfig` | Per-user rate limiting |
+| `config.onAudit` | `AuditHandler` | Structured log callback |
+| `adapter` | `(raw: unknown) => NormalizedResponse` | Custom response parser |
+
+## `guard.protect(callFn, prompt?)`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `callFn` | `(safePrompt: string) => Promise<unknown>` | Your AI API call |
+| `prompt` | `string` | Original user prompt |
+
+**Returns** `Promise<GuardianResult<T>>`:
+
+```typescript
+{
+  data: T,       // Parsed + validated (typed by your schema)
+  raw:  string,  // Text output after PII redaction
+  meta: {
+    piiRedacted:            PIIMatch[],
+    injectionDetected:      InjectionMatch[],
+    budget:                 BudgetUsage | null,
+    repairAttempts:         number,
+    canaryLeaked:           boolean,
+    contentViolation:       boolean,
+    hallucinationSuspected: boolean,
+    hallucinationScore:     number,
+    durationMs:             number,
+  }
+}
+```
+
+## `guard.protectStream(callFn, prompt?)`
+
+Same signature as `protect()`. `callFn` can return an `AsyncIterable<string>`, `ReadableStream`, or a Vercel AI SDK `streamText` result.
+
+## `guard.inspect(prompt, rawOutput?)`
+
+Dry-run analysis. Returns `InspectReport`:
+
+```typescript
+{
+  prompt:      { pii: PIIMatch[], injection: InjectionResult },
+  output:      { pii: PIIMatch[], schemaValid: boolean, repairAttempts: number } | null,
+  budget:      BudgetUsage | null,
+  overallRisk: 'safe' | 'low' | 'medium' | 'high' | 'critical',
+  summary:     string[],
+}
+```

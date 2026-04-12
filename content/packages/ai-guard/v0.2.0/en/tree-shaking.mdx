@@ -1,0 +1,77 @@
+---
+title: Tree-Shakeable Sub-paths
+description: Import only the guards you need using dedicated sub-path exports to minimize bundle size.
+---
+
+# Tree-Shakeable Sub-paths
+
+Import individual guards directly from their own sub-paths. This eliminates unused code from your bundle — critical for edge runtimes and serverless functions.
+
+## Available Sub-paths
+
+```typescript
+// Import each guard independently
+import { redactPII, detectPII }          from '@edwinfom/ai-guard/pii';
+import { detectInjection }               from '@edwinfom/ai-guard/injection';
+import { createCanaryToken, checkCanaryLeak } from '@edwinfom/ai-guard/canary';
+import { analyzeContent }                from '@edwinfom/ai-guard/content';
+import { checkGrounding }                from '@edwinfom/ai-guard/hallucination';
+import { buildUsage, calculateCost }     from '@edwinfom/ai-guard/budget';
+import { enforceSchema }                 from '@edwinfom/ai-guard/schema';
+```
+
+## Bundle Size Comparison
+
+| Import | Bundle size |
+|---|---|
+| `import { Guardian } from '@edwinfom/ai-guard'` | ~28 KB (all guards) |
+| `import { redactPII } from '@edwinfom/ai-guard/pii'` | ~6.2 KB |
+| `import { detectInjection } from '@edwinfom/ai-guard/injection'` | ~4.8 KB |
+| `import { buildUsage } from '@edwinfom/ai-guard/budget'` | ~1.9 KB |
+
+## Edge Runtime Example
+
+For Vercel Edge or Cloudflare Workers, where bundle size is critical:
+
+```typescript
+// edge/validate-prompt/route.ts
+import { detectInjection } from '@edwinfom/ai-guard/injection';
+import { redactPII } from '@edwinfom/ai-guard/pii';
+
+export const runtime = 'edge';
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  // Only PII + injection — minimal bundle
+  const injection = detectInjection(prompt, { sensitivity: 'high' });
+  if (injection.detected) {
+    return Response.json({ error: 'Blocked' }, { status: 400 });
+  }
+
+  const clean = redactPII(prompt, { targets: ['email', 'phone'] });
+  
+  // Forward to LLM...
+}
+```
+
+## TypeScript Path Aliases
+
+Each sub-path is fully typed. Add to your `tsconfig.json` if using custom path aliases:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@edwinfom/ai-guard/*": ["./node_modules/@edwinfom/ai-guard/dist/*"]
+    }
+  }
+}
+```
+
+## Notes
+
+- All sub-paths are ESM-only
+- Each sub-path has zero cross-dependencies with other sub-paths
+- The main `@edwinfom/ai-guard` export re-exports everything for convenience
+- `zod` is an optional peer dependency — only needed for schema enforcement

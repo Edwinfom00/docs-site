@@ -1,0 +1,95 @@
+---
+title: Limiteur de Taux
+description: Limites de taux par utilisateur à fenêtre glissante sur les requêtes et les tokens pour éviter les abus et les coûts excessifs.
+---
+
+# Limiteur de Taux
+
+Empêche un utilisateur unique d'inonder votre Endpoint d'IA avec des requêtes. Utilise un algorithme de fenêtre glissante avec suivi des tokens et requêtes par utilisateur.
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 10,         // Max 10 requêtes...
+    windowMs:    60_000,     // ...par 60 secondes
+    maxTokens:   50_000,     // Limite aussi le total des tokens par fenêtre
+    keyFn: (prompt) => getUserId(prompt),  // Comment identifier l'utilisateur
+  },
+});
+```
+
+## Configuration
+
+| Option | Type | Défaut | Description |
+|---|---|---|---|
+| `maxRequests` | `number` | `100` | Requêtes max par fenêtre |
+| `windowMs` | `number` | `60000` | Taille de la fenêtre en millisecondes |
+| `maxTokens` | `number` | `undefined` | Total de tokens max par fenêtre |
+| `keyFn` | `(prompt: string) => string` | `() => 'global'` | Fonction d'identification utilisateur |
+| `store` | `RateLimitStore` | In-memory | Backend de stockage personnalisé |
+
+## Limitation Basée sur les Requêtes
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 5,
+    windowMs:    60_000,   // 5 requêtes par minute et par utilisateur
+    keyFn:       (p) => p.userId,
+  },
+});
+
+// À la 6e requête dans la fenêtre :
+try {
+  await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof RateLimitError) {
+    const retryAfter = Math.ceil(err.context.resetInMs / 1000);
+    return Response.json(
+      { error: 'Trop de requêtes', retryAfter },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    );
+  }
+}
+```
+
+## Limitation Basée sur les Tokens
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxTokens: 100_000,   // 100K tokens par utilisateur par heure
+    windowMs:  3_600_000,
+    keyFn:     (p) => p.userId,
+  },
+});
+```
+
+## Stockage Personnalisé (Redis)
+
+Remplacez la mémoire par défaut par Redis pour les déploiements multi-instances :
+
+```typescript
+import { RedisRateLimitStore } from '@edwinfom/ai-guard/rate-limit';
+import { Redis } from 'ioredis';
+
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 20,
+    windowMs:    60_000,
+    store: new RedisRateLimitStore(new Redis(process.env.REDIS_URL)),
+  },
+});
+```
+
+## Métadonnées de Résultat
+
+```typescript
+const result = await guard.protect(callFn, prompt);
+console.log(result.meta.rateLimit);
+// {
+//   remaining: 7,       // Requêtes restantes dans la fenêtre actuelle
+//   reset: 1737000000,  // Timestamp Unix de réinitialisation de la fenêtre
+//   total: 10,          // Total autorisé par fenêtre
+// }
+```

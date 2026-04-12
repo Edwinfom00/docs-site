@@ -1,0 +1,77 @@
+---
+title: Sous-chemins (Tree-Shakeable)
+description: Importez uniquement les guards dont vous avez besoin à l'aide d'exports de sous-chemins dédiés pour minimiser la taille du bundle.
+---
+
+# Sous-chemins (Tree-Shakeable)
+
+Importez chaque guard individuellement depuis son propre sous-chemin. Cela élimine le code inutilisé de votre bundle final — essentiel pour les environnements d'exécution Edge et les fonctions serverless.
+
+## Sous-chemins Disponibles
+
+```typescript
+// Importez chaque guard indépendamment
+import { redactPII, detectPII }          from '@edwinfom/ai-guard/pii';
+import { detectInjection }               from '@edwinfom/ai-guard/injection';
+import { createCanaryToken, checkCanaryLeak } from '@edwinfom/ai-guard/canary';
+import { analyzeContent }                from '@edwinfom/ai-guard/content';
+import { checkGrounding }                from '@edwinfom/ai-guard/hallucination';
+import { buildUsage, calculateCost }     from '@edwinfom/ai-guard/budget';
+import { enforceSchema }                 from '@edwinfom/ai-guard/schema';
+```
+
+## Comparaison de la Taille du Bundle
+
+| Import | Taille du bundle |
+|---|---|
+| `import { Guardian } from '@edwinfom/ai-guard'` | ~28 KB (tous les guards) |
+| `import { redactPII } from '@edwinfom/ai-guard/pii'` | ~6.2 KB |
+| `import { detectInjection } from '@edwinfom/ai-guard/injection'` | ~4.8 KB |
+| `import { buildUsage } from '@edwinfom/ai-guard/budget'` | ~1.9 KB |
+
+## Exemple d'Environnement d'Exécution Edge (Edge Runtime)
+
+Pour Vercel Edge ou Cloudflare Workers, où la taille du bundle est critique :
+
+```typescript
+// edge/validate-prompt/route.ts
+import { detectInjection } from '@edwinfom/ai-guard/injection';
+import { redactPII } from '@edwinfom/ai-guard/pii';
+
+export const runtime = 'edge';
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  // Seulement PII + injection — bundle minimal
+  const injection = detectInjection(prompt, { sensitivity: 'high' });
+  if (injection.detected) {
+    return Response.json({ error: 'Bloqué' }, { status: 400 });
+  }
+
+  const clean = redactPII(prompt, { targets: ['email', 'phone'] });
+  
+  // Transférer au LLM...
+}
+```
+
+## Alias de Chemin (Path Aliases) TypeScript
+
+Chaque sous-chemin est entièrement typé. Ajoutez ceci à votre fichier `tsconfig.json` si vous utilisez des alias de chemin personnalisés :
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@edwinfom/ai-guard/*": ["./node_modules/@edwinfom/ai-guard/dist/*"]
+    }
+  }
+}
+```
+
+## Remarques
+
+- Tous les sous-chemins sont uniquement compatibles ESM
+- Chaque sous-chemin n'a aucune dépendance croisée avec les autres sous-chemins
+- L'export principal `@edwinfom/ai-guard` réexporte tout par commodité
+- `zod` est une dépendance peer facultative — uniquement nécessaire pour l'application de schémas

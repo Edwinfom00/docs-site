@@ -1,0 +1,66 @@
+---
+title: Référence API
+description: Référence détaillée de l'API pour @edwinfom/ai-guard — la classe Guardian, et les méthodes protect(), protectStream(), et inspect().
+---
+
+# Référence API
+
+## `new Guardian<T>(config?, adapter?)`
+
+| Option | Type | Description |
+|---|---|---|
+| `config.pii` | `PIIConfig` | Caviardage des informations personnelles (entrée + sortie) |
+| `config.schema` | `SchemaConfig<T>` | Validation de schéma + réparation à 3 niveaux |
+| `config.injection` | `InjectionConfig` | Détection d'injection de prompt |
+| `config.content` | `ContentConfig` | Politique de contenu (toxicité, haine, violence…) |
+| `config.canary` | `CanaryConfig` | Détection de fuite du prompt système |
+| `config.hallucination` | `HallucinationConfig` | Vérification de l'ancrage RAG (grounding) |
+| `config.budget` | `BudgetConfig` | Limites de tokens/coûts |
+| `config.rateLimit` | `RateLimitConfig` | Limitation de taux (Rate limit) par utilisateur |
+| `config.onAudit` | `AuditHandler` | Callback structuré pour le journal |
+| `adapter` | `(raw: unknown) => NormalizedResponse` | Analyseur de réponse personnalisé |
+
+## `guard.protect(callFn, prompt?)`
+
+| Paramètre | Type | Description |
+|---|---|---|
+| `callFn` | `(safePrompt: string) => Promise<unknown>` | Votre appel d'API IA |
+| `prompt` | `string` | Le prompt utilisateur d'origine |
+
+**Retourne** `Promise<GuardianResult<T>>`:
+
+```typescript
+{
+  data: T,       // Analysé + validé (typé par votre schéma)
+  raw:  string,  // Résultat texte après caviardage des PII
+  meta: {
+    piiRedacted:            PIIMatch[],
+    injectionDetected:      InjectionMatch[],
+    budget:                 BudgetUsage | null,
+    repairAttempts:         number,
+    canaryLeaked:           boolean,
+    contentViolation:       boolean,
+    hallucinationSuspected: boolean,
+    hallucinationScore:     number,
+    durationMs:             number,
+  }
+}
+```
+
+## `guard.protectStream(callFn, prompt?)`
+
+Même signature que `protect()`. `callFn` peut retourner un `AsyncIterable<string>`, `ReadableStream`, ou un résultat Vercel AI SDK `streamText`.
+
+## `guard.inspect(prompt, rawOutput?)`
+
+Analyse à blanc (Dry-run). Retourne `InspectReport`:
+
+```typescript
+{
+  prompt:      { pii: PIIMatch[], injection: InjectionResult },
+  output:      { pii: PIIMatch[], schemaValid: boolean, repairAttempts: number } | null,
+  budget:      BudgetUsage | null,
+  overallRisk: 'safe' | 'low' | 'medium' | 'high' | 'critical',
+  summary:     string[],
+}
+```

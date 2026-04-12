@@ -1,0 +1,49 @@
+[
+  {
+    "title": "Démarrage",
+    "items": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Installation", "slug": "installation" },
+      { "title": "Démarrage rapide", "slug": "quick-start" }
+    ]
+  },
+  {
+    "title": "Fonctionnalités principales",
+    "items": [
+      { "title": "Validation de schéma", "slug": "schema-enforcement" },
+      { "title": "Anonymisation des données", "slug": "pii-redaction" },
+      { "title": "Injection de prompt", "slug": "prompt-injection" },
+      { "title": "Jetons canaris", "slug": "canary-tokens" },
+      { "title": "Politique de contenu", "slug": "content-policy" },
+      { "title": "Détection d'hallucination", "slug": "hallucination-detection" },
+      { "title": "Sentinelle budgétaire", "slug": "budget-sentinel" },
+      { "title": "Limiteur de débit", "slug": "rate-limiter" }
+    ]
+  },
+  {
+    "title": "Avancé",
+    "items": [
+      { "title": "Journal d'audit", "slug": "audit-log" },
+      { "title": "Support du streaming", "slug": "streaming" },
+      { "title": "Inspection en mode dry-run", "slug": "inspect" },
+      { "title": "Sous-chemins tree-shaking", "slug": "tree-shaking" },
+      { "title": "Adaptateur personnalisé", "slug": "custom-adapter" }
+    ]
+  },
+  {
+    "title": "Intégrations",
+    "items": [
+      { "title": "Vercel AI SDK", "slug": "vercel-adapter" },
+      { "title": "LangChain", "slug": "langchain-adapter" },
+      { "title": "Exemple Next.js", "slug": "nextjs-example" }
+    ]
+  },
+  {
+    "title": "Référence",
+    "items": [
+      { "title": "Référence API", "slug": "api-reference" },
+      { "title": "Types d'erreurs", "slug": "error-types" },
+      { "title": "Journal des modifications", "slug": "changelog" }
+    ]
+  }
+]

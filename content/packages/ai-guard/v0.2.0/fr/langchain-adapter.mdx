@@ -1,0 +1,122 @@
+---
+title: LangChain
+description: Utilisez @edwinfom/ai-guard à l'intérieur des chaînes et agents LangChain avec l'adaptateur createGuardedParser.
+---
+
+# Intégration LangChain
+
+Guard s'intègre avec LangChain via l'adaptateur `createGuardedParser`, qui enveloppe n'importe quel analyseur de sortie LangChain avec l'application de schéma et la protection PII de Guard.
+
+## Installation
+
+```bash
+npm install langchain @langchain/openai @edwinfom/ai-guard
+```
+
+## Chaîne de Base
+
+```typescript
+import { ChatOpenAI } from '@langchain/openai';
+import { PromptTemplate } from '@langchain/core/prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { Guardian } from '@edwinfom/ai-guard';
+
+const guard = new Guardian({
+  pii:       { targets: ['email', 'phone'], onOutput: true },
+  injection: { enabled: true, sensitivity: 'medium' },
+  budget:    { model: 'gpt-4o-mini', maxTokens: 2000 },
+});
+
+const model = new ChatOpenAI({ model: 'gpt-4o-mini' });
+const prompt = PromptTemplate.fromTemplate('Réponds à cette question : {question}');
+const parser = new StringOutputParser();
+
+// Enveloppe l'invocation complète de la chaîne avec Guard
+const chain = prompt.pipe(model).pipe(parser);
+
+const result = await guard.protect(
+  (safeQuestion) => chain.invoke({ question: safeQuestion }),
+  userQuestion,
+);
+
+console.log(result.data);  // Réponse protégée
+```
+
+## Analyseur de Sortie Structuré
+
+```typescript
+import { StructuredOutputParser } from 'langchain/output_parsers';
+import { z } from 'zod';
+
+const parser = StructuredOutputParser.fromZodSchema(
+  z.object({
+    answer:      z.string(),
+    confidence:  z.number().min(0).max(1),
+    sources:     z.array(z.string()),
+  })
+);
+
+const guard = new Guardian({
+  schema:    { validator: parser.getSchema() },
+  injection: { enabled: true },
+});
+
+const chain = prompt.pipe(model).pipe(parser);
+
+const result = await guard.protect(
+  (safeInput) => chain.invoke({ question: safeInput }),
+  userQuestion,
+);
+
+// Résultat entièrement typé
+console.log(result.data.answer);     // string
+console.log(result.data.confidence); // number
+```
+
+## LCEL (LangChain Expression Language)
+
+```typescript
+import { RunnableLambda } from '@langchain/core/runnables';
+
+// Enveloppe Guard en tant que Runnable
+const guardedRunnable = RunnableLambda.from(async (input: string) => {
+  const result = await guard.protect(
+    (safeInput) => chain.invoke({ question: safeInput }),
+    input,
+  );
+  return result.data;
+});
+
+// À composer comme n'importe quel autre Runnable
+const pipeline = guardedRunnable.pipe(postProcessRunnable);
+const output = await pipeline.invoke(userInput);
+```
+
+## Agent avec Guard
+
+```typescript
+import { createOpenAIFunctionsAgent, AgentExecutor } from 'langchain/agents';
+
+const agent = await createOpenAIFunctionsAgent({ llm: model, tools, prompt });
+const executor = new AgentExecutor({ agent, tools });
+
+// Protège l'exécution entière de l'agent
+const result = await guard.protect(
+  (safeInput) => executor.invoke({ input: safeInput }),
+  userInput,
+);
+```
+
+## L'Aide createGuardedParser
+
+```typescript
+import { createGuardedParser } from '@edwinfom/ai-guard/langchain';
+
+// Enveloppe un OutputParser LangChain avec la réparation de schéma de Guard
+const guardedParser = createGuardedParser(myParser, {
+  repair:     true,
+  maxRetries: 2,
+});
+
+const chain = prompt.pipe(model).pipe(guardedParser);
+```

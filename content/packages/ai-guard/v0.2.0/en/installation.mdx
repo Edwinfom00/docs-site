@@ -1,0 +1,56 @@
+---
+title: Installation
+description: Install @edwinfom/ai-guard with npm, pnpm, yarn, or bun. Requires Node.js 18+.
+---
+
+# Installation
+
+Install `@edwinfom/ai-guard` with your preferred package manager:
+
+```bash
+npm install @edwinfom/ai-guard
+```
+
+```bash
+pnpm add @edwinfom/ai-guard
+```
+
+```bash
+yarn add @edwinfom/ai-guard
+```
+
+```bash
+bun add @edwinfom/ai-guard
+```
+
+## Requirements
+
+- **Node.js ≥ 18** (uses native `fetch`, `structuredClone`, etc.)
+- **TypeScript 5.4+** (recommended for full type inference)
+
+## Optional Peer Dependency
+
+If you want to use **Zod schema validation** (highly recommended):
+
+```bash
+npm install zod
+```
+
+> Zod is completely optional — you can use a custom validator function instead. See [Custom Adapter](/docs/ai-guard/v0.2.0/custom-adapter).
+
+## Zero Mandatory Runtime Dependencies
+
+The only runtime dependency is [`jsonrepair`](https://github.com/josdejong/jsonrepair) — a battle-tested JSON repair library. Everything else is built-in.
+
+## Tree-Shakeable Sub-paths
+
+Import only what you need — zero dead code in your bundle:
+
+```typescript
+import { redactPII, detectPII }           from '@edwinfom/ai-guard/pii';
+import { repairAndParse, repairJSON }      from '@edwinfom/ai-guard/schema';
+import { detectInjection }                from '@edwinfom/ai-guard/injection';
+import { buildUsage, calculateCost }      from '@edwinfom/ai-guard/budget';
+```
+
+See [Tree-Shakeable Sub-paths](/docs/ai-guard/v0.2.0/tree-shaking) for the full list.

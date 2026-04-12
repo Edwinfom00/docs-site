@@ -1,0 +1,47 @@
+---
+title: Changelog
+description: Release history for @edwinfom/ai-guard.
+---
+
+# Changelog
+
+All notable changes to `@edwinfom/ai-guard` are documented here.
+
+---
+
+## v0.2.0 — 2026-04-11
+
+### New Features
+
+- **Canary Tokens** — Invisible markers detect system prompt leakage at runtime
+- **Content Policy** — Detects toxicity, hate speech, violence, self-harm, sexual content
+- **Hallucination Detection** — Named-entity grounding check for RAG pipelines
+- **Rate Limiter** — Per-user sliding-window request and token limits
+- **Audit Log** — Structured callback with every `protect()` call
+- Added French PII types: NIR, SIRET, SIREN, passport, date of birth
+
+### Breaking Changes
+
+- Schema Level 2 now uses `jsonrepair` instead of custom regex extractor (100+ more patterns covered)
+
+### Bug Fixes
+
+- Fixed credit card validation (Luhn algorithm now applied strictly)
+- Fixed TypeScript generic inference for nested Zod schemas
+
+---
+
+## v0.1.0 — 2026-04-10
+
+### Initial Release
+
+- `Guardian` class with `protect()` method
+- PII Redaction: email, phone, creditCard, ssn, ipAddress, iban, url
+- Schema Enforcement: 3-level repair (strip → extract → LLM retry)
+- Prompt Injection Detection: 15+ attack patterns with sensitivity levels
+- Budget Sentinel: token counting and cost estimation for 7 models
+- `protectStream()` for async streaming
+- `inspect()` dry-run analysis
+- Vercel AI SDK adapter
+- LangChain adapter
+- Tree-shakeable sub-path exports

@@ -1,0 +1,106 @@
+---
+title: Schema Enforcement
+description: A 3-level repair pipeline that extracts valid JSON from any LLM response, even when it wraps output in markdown or adds explanatory text.
+---
+
+# Schema Enforcement
+
+LLMs sometimes return JSON wrapped in markdown fences, with trailing commas, or with explanatory text before/after. The Schema Enforcement pipeline fixes all of that automatically.
+
+```typescript
+import { z } from 'zod';
+import OpenAI from 'openai';
+import { Guardian } from '@edwinfom/ai-guard';
+
+const openai = new OpenAI();
+
+const ProductSchema = z.object({
+  name:     z.string(),
+  price:    z.number(),
+  inStock:  z.boolean(),
+  tags:     z.array(z.string()),
+});
+
+const guard = new Guardian({
+  schema: {
+    validator: ProductSchema,
+    repair:    true,   // Enable the 3-level repair pipeline
+    strict:    false,  // Allow extra fields (they'll be stripped)
+  },
+});
+
+// Even if GPT returns ```json\n{ ... }\n``` — Guard handles it
+const result = await guard.protect(
+  (safePrompt) => openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: safePrompt }],
+  }),
+  'Return a product object for a laptop'
+);
+
+// result.data is fully typed as z.infer<typeof ProductSchema>
+console.log(result.data.name);    // ✅ typed string
+console.log(result.data.price);   // ✅ typed number
+```
+
+## The 3-Level Repair Pipeline
+
+When the LLM response fails schema validation, Guard runs repairs in sequence, stopping at the first success:
+
+| Level | Strategy | What it handles |
+|---|---|---|
+| **1 — Strip** | Remove markdown fences (` ```json `), trim whitespace, strip prefix text | Most common failure (80%+ of cases) |
+| **2 — Repair** | `jsonrepair` library — 100+ broken JSON patterns | Trailing commas, missing quotes, single quotes, unescaped chars |
+| **3 — LLM Retry** | Ask the LLM to re-output as clean JSON with strict prompt | Hallucinated structure, completely wrong response |
+
+```typescript
+// You can inspect which repair level was used
+const result = await guard.protect(callFn, prompt);
+console.log(result.meta.schemaRepairLevel);
+// → 0 (valid), 1 (stripped), 2 (repaired), 3 (LLM retry)
+```
+
+## Standalone Usage
+
+```typescript
+import { enforceSchema } from '@edwinfom/ai-guard/schema';
+import { z } from 'zod';
+
+const { data, repairLevel } = await enforceSchema(
+  '```json\n{"name": "Laptop", "price": 999,}\n```',
+  z.object({ name: z.string(), price: z.number() })
+);
+// data → { name: 'Laptop', price: 999 }
+// repairLevel → 2
+```
+
+## Configuration
+
+```typescript
+const guard = new Guardian({
+  schema: {
+    validator:   ProductSchema,   // Any Zod schema
+    repair:      true,            // Default: true
+    strict:      false,           // Strict mode strips extra fields
+    maxRetries:  1,               // LLM retry attempts (Level 3)
+    retryPrompt: (raw) =>         // Custom retry prompt
+      `Fix this JSON:\n${raw}`,
+  },
+});
+```
+
+## Error Handling
+
+```typescript
+import { SchemaError } from '@edwinfom/ai-guard';
+
+try {
+  await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof SchemaError) {
+    console.log(err.code);         // 'SCHEMA_VALIDATION_FAILED'
+    console.log(err.context.raw);  // The raw string that failed
+    console.log(err.context.issues); // Zod issues array
+  }
+}
+```

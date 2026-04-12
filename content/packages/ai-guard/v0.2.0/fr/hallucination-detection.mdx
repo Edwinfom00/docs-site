@@ -1,0 +1,94 @@
+---
+title: Détection d'Hallucinations
+description: Vérifiez les réponses de l'IA par rapport à vos documents sources pour identifier les faits qui n'existent pas dans votre contexte RAG.
+---
+
+# Détection d'Hallucinations
+
+Vérifie que les entités nommées (personnes, lieux, organisations, dates, nombres) dans la réponse de l'IA apparaissent réellement dans vos documents sources. Intercepte **les hallucinations de l'IA** dans les pipelines RAG avant qu'elles n'atteignent les utilisateurs.
+
+```typescript
+const guard = new Guardian({
+  hallucination: {
+    sources: [ragDocument1, ragDocument2, ragDocument3],
+    // Les entités nommées dans la réponse doivent apparaître dans au moins une source
+    threshold: 0.7,  // 70% des entités doivent être ancrées (par défaut : 0.8)
+  },
+});
+
+const result = await guard.protect(callFn, userQuery);
+console.log(result.meta.hallucination);
+// {
+//   passed: true,
+//   groundingScore: 0.93,
+//   ungroupedEntities: [],     // ← excellent, toutes les entités trouvées dans les sources
+// }
+```
+
+## Comment Ça Marche
+
+1. L'IA génère une réponse
+2. Guard extrait les entités nommées via NER (Name Entity Recognition)
+3. Chaque entité est vérifiée par rapport à vos documents sources
+4. Un **score d'ancrage (grounding score)** (0–1) est calculé
+5. Si le score < threshold → l'erreur `HallucinationError` est levée
+
+```typescript
+// Exemple : L'IA affirme "Le rapport a été rédigé par Dr. Smith en 2019"
+// Si "Dr. Smith" et "2019" ne sont pas dans les sources → hallucination détectée
+
+const result = await guard.protect(async (prompt) => {
+  return openai.chat.completions.create({ /* ... */ });
+}, userQuery);
+
+console.log(result.meta.hallucination.groundingScore); // 0.5 (risqué)
+console.log(result.meta.hallucination.ungroupedEntities);
+// ['Dr. Smith', '2019'] ← ces entités n'étaient pas dans vos sources
+```
+
+## Sources Dynamiques
+
+Les sources peuvent être récupérées dynamiquement pour chaque requête :
+
+```typescript
+const guard = new Guardian({
+  hallucination: {
+    // Fonction retournant les sources basées sur le prompt
+    getSources: async (prompt) => {
+      return await vectorDb.search(prompt, { topK: 5 });
+    },
+    threshold: 0.75,
+  },
+});
+```
+
+## Gestion des Erreurs
+
+```typescript
+import { HallucinationError } from '@edwinfom/ai-guard';
+
+try {
+  await guard.protect(callFn, query);
+} catch (err) {
+  if (err instanceof HallucinationError) {
+    console.log(err.code);                       // 'HALLUCINATION_DETECTED'
+    console.log(err.context.groundingScore);     // 0.42
+    console.log(err.context.ungroupedEntities);  // ['entity1', 'entity2']
+
+    // Solution de repli : retourner une réponse sécurisée type "Je ne sais pas"
+    return { answer: 'Je n\'ai pas trouvé d\'informations fiables à ce sujet.' };
+  }
+}
+```
+
+## Utilisation Autonome
+
+```typescript
+import { checkGrounding } from '@edwinfom/ai-guard/hallucination';
+
+const result = checkGrounding(
+  'La Tour Eiffel a été construite en 1887 par Gustave Eiffel.',
+  ['La construction de la Tour Eiffel a commencé en 1887. Elle a été conçue par Alexandre Gustave Eiffel.']
+);
+// { groundingScore: 0.95, ungroupedEntities: [] }
+```

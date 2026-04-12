@@ -1,0 +1,107 @@
+---
+title: Custom Adapter
+description: Build your own response parser to support any LLM provider or custom API format.
+---
+
+# Custom Adapter
+
+By default, Guard extracts text from OpenAI-compatible response objects. Use a custom adapter to support any LLM provider — Cohere, Mistral, a self-hosted model, or any custom API.
+
+## Default Behavior
+
+Guard automatically handles standard OpenAI-format responses:
+
+```typescript
+// This works out-of-the-box with OpenAI, Anthropic (via SDK), and OpenAI-compatible APIs
+const result = await guard.protect(
+  (prompt) => openai.chat.completions.create({ ... }),
+  userPrompt
+);
+```
+
+## Custom Response Parser
+
+```typescript
+const guard = new Guardian({
+  adapter: {
+    // Tell Guard how to extract the text from your LLM's response
+    extractText: (response) => {
+      // For a custom API that returns { output: { text: string } }
+      return response.output.text;
+    },
+    // Optionally extract token counts
+    extractUsage: (response) => ({
+      inputTokens:  response.usage.prompt_tokens,
+      outputTokens: response.usage.completion_tokens,
+    }),
+  },
+});
+```
+
+## Cohere Example
+
+```typescript
+const { CohereClient } = require('cohere-ai');
+const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
+
+const guard = new Guardian({
+  adapter: {
+    extractText: (response) => response.text,
+    extractUsage: (response) => ({
+      inputTokens:  response.meta?.tokens?.inputTokens ?? 0,
+      outputTokens: response.meta?.tokens?.outputTokens ?? 0,
+    }),
+  },
+  schema: { validator: MySchema },
+  pii:    { targets: ['email', 'phone'] },
+});
+
+const result = await guard.protect(
+  (prompt) => cohere.generate({ prompt, model: 'command-r-plus' }),
+  userPrompt
+);
+```
+
+## Mistral / Llama Example
+
+```typescript
+import Mistral from '@mistralai/mistralai';
+const mistral = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+
+const guard = new Guardian({
+  adapter: {
+    // Mistral uses same format as OpenAI
+    extractText: (r) => r.choices[0].message.content,
+    extractUsage: (r) => ({
+      inputTokens:  r.usage.promptTokens,
+      outputTokens: r.usage.completionTokens,
+    }),
+  },
+});
+
+const result = await guard.protect(
+  (prompt) => mistral.chat.complete({
+    model:    'mistral-large-latest',
+    messages: [{ role: 'user', content: prompt }],
+  }),
+  userPrompt
+);
+```
+
+## Adapter Interface
+
+```typescript
+interface GuardAdapter {
+  // Required: extract the text content from the LLM response
+  extractText(response: unknown): string;
+  
+  // Optional: extract token usage for budget tracking
+  extractUsage?(response: unknown): {
+    inputTokens:  number;
+    outputTokens: number;
+  };
+  
+  // Optional: transform the response after Guard processing
+  transformResponse?(response: unknown, guardedText: string): unknown;
+}
+```

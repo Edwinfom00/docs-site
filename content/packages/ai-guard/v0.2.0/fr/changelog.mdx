@@ -1,0 +1,47 @@
+---
+title: Journal des modifications
+description: Historique des versions pour @edwinfom/ai-guard.
+---
+
+# Journal des modifications
+
+Toutes les modifications notables apportées à `@edwinfom/ai-guard` sont documentées ici.
+
+---
+
+## v0.2.0 — 2026-04-11
+
+### Nouvelles Fonctionnalités
+
+- **Jetons Canaris** — Des marqueurs invisibles détectent la fuite du prompt système au moment de l'exécution
+- **Politique de Contenu** — Détecte la toxicité, les discours de haine, la violence, l'automutilation, le contenu sexuel
+- **Détection d'Hallucination** — Vérification d'ancrage d'entités nommées pour les pipelines RAG
+- **Limiteur de Débit** — Limites de requêtes et de tokens par fenêtre glissante par utilisateur
+- **Journal d'Audit** — Callback structuré à chaque appel de `protect()`
+- Ajout des types PII français : NIR, SIRET, SIREN, passeport, date de naissance
+
+### Changements Majeurs
+
+- Le niveau de schéma 2 utilise désormais `jsonrepair` au lieu d'un extracteur d'expressions régulières personnalisé (+100 modèles couverts)
+
+### Corrections de Bugs
+
+- Correction de la validation des cartes de crédit (algorithme de Luhn désormais appliqué strictement)
+- Correction de l'inférence générique TypeScript pour les schémas Zod imbriqués
+
+---
+
+## v0.1.0 — 2026-04-10
+
+### Version Initiale
+
+- Classe `Guardian` avec la méthode `protect()`
+- Anonymisation PII : email, téléphone, creditCard, ssn, ipAddress, iban, url
+- Application de schéma : réparation à 3 niveaux (nettoyage → extraction → réessai LLM)
+- Détection d'injection de prompt : +15 modèles d'attaque avec niveaux de sensibilité
+- Sentinelle budgétaire : comptage de tokens et estimation des coûts pour 7 modèles
+- `protectStream()` pour le streaming asynchrone
+- Analyse en mode `inspect()` (dry-run)
+- Adaptateur Vercel AI SDK
+- Adaptateur LangChain
+- Exportations de sous-chemins tree-shakable

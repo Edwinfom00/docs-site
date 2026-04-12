@@ -1,0 +1,15 @@
+{
+  "name": "@edwinfom/ai-guard",
+  "slug": "ai-guard",
+  "description": "A security middleware for AI API responses — PII redaction, schema enforcement, prompt injection detection, budget sentinel, and more.",
+  "version": "0.2.0",
+  "versions": ["0.2.0", "0.1.0"],
+  "latestVersion": "0.2.0",
+  "npm": "https://www.npmjs.com/package/@edwinfom/ai-guard",
+  "github": "https://github.com/Edwinfom00/ai-guard",
+  "license": "MIT",
+  "author": "Edwin Fom",
+  "color": "#3b82f6",
+  "icon": "shield",
+  "tags": ["ai", "security", "pii", "llm", "middleware"]
+}

@@ -1,0 +1,106 @@
+---
+title: Journal d'Audit
+description: Recevez un callback structuré après chaque appel à protect() avec les métadonnées complètes pour la journalisation, l'analyse et la conformité.
+---
+
+# Journal d'Audit
+
+Le callback `onAudit` se déclenche après chaque appel à `protect()` — succès ou échec — avec une entrée de journal structurée complète. Utilisez-le pour l'analyse, la surveillance de la sécurité et les registres de conformité.
+
+```typescript
+import pino from 'pino';
+
+const logger = pino();
+
+const guard = new Guardian({
+  onAudit: (entry) => {
+    logger.info({
+      type:       'ai_guard_audit',
+      requestId:  entry.requestId,
+      timestamp:  entry.timestamp,
+      duration:   entry.durationMs,
+      passed:     entry.passed,
+      blocked:    entry.blockedBy,
+      pii:        entry.meta.piiRedacted?.length ?? 0,
+      tokens:     entry.meta.budget?.totalTokens,
+      cost:       entry.meta.budget?.estimatedCostUSD,
+    });
+  },
+});
+```
+
+## Structure de l'Entrée d'Audit
+
+```typescript
+interface AuditEntry {
+  requestId:   string;           // ID de requête unique (UUIDv4)
+  timestamp:   number;           // Timestamp Unix (ms)
+  durationMs:  number;           // Temps d'exécution total du Guardian
+  passed:      boolean;          // La requête a-t-elle passé tous les contrôles ?
+  blockedBy:   string | null;    // Quel contrôle l'a bloquée (le cas échéant)
+  prompt:      string | null;    // Prompt d'origine (opt-in, voir ci-dessous)
+  response:    string | null;    // Réponse de l'IA (opt-in)
+  meta: {
+    piiRedacted?:      PiiMatch[];
+    schemaRepairLevel?: 0 | 1 | 2 | 3;
+    injectionScore?:   number;
+    canaryLeaked?:     boolean;
+    contentPolicy?:    ContentPolicyResult;
+    hallucination?:    HallucinationResult;
+    budget?:           BudgetUsage;
+    rateLimit?:        RateLimitResult;
+  };
+  error?: {
+    code:    string;
+    message: string;
+  };
+}
+```
+
+## Contrôles de Confidentialité
+
+Par défaut, les prompts et les réponses ne sont **pas** journalisés. Il faut les activer explicitement :
+
+```typescript
+const guard = new Guardian({
+  onAudit: (entry) => logger.info(entry),
+  audit: {
+    logPrompt:   false,   // Par défaut — ne stocke pas les prompts bruts
+    logResponse: false,   // Par défaut — ne stocke pas les réponses brutes
+    logPromptHash: true,  // Stocke un hachage SHA-256 à la place (pour la déduplication)
+  },
+});
+```
+
+## Enregistrer dans la Base de Données
+
+```typescript
+const guard = new Guardian({
+  onAudit: async (entry) => {
+    await db.insert('ai_audit_log').values({
+      request_id:   entry.requestId,
+      timestamp:    new Date(entry.timestamp),
+      passed:       entry.passed,
+      blocked_by:   entry.blockedBy,
+      total_tokens: entry.meta.budget?.totalTokens ?? 0,
+      cost_usd:     entry.meta.budget?.estimatedCostUSD ?? 0,
+      pii_count:    entry.meta.piiRedacted?.length ?? 0,
+    });
+  },
+});
+```
+
+## Envoyer vers un Service Externe
+
+```typescript
+const guard = new Guardian({
+  onAudit: (entry) => {
+    // Datadog, Segment, PostHog, etc.
+    analytics.track('ai_request', {
+      blocked:     !entry.passed,
+      duration_ms: entry.durationMs,
+      ...entry.meta,
+    });
+  },
+});
+```

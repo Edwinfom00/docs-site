@@ -1,0 +1,56 @@
+---
+title: PII Redaction
+description: Scrub sensitive data in both directions — before it leaves your server and before it reaches your UI.
+---
+
+# PII Redaction
+
+Scrubs sensitive data in both directions — the prompt **before it leaves your server** and the response **before it reaches your UI**.
+
+```typescript
+const guard = new Guardian({
+  pii: {
+    targets:     ['email', 'phone', 'creditCard', 'nir', 'siret', 'iban'],
+    onInput:     true,   // Redact in the user's prompt
+    onOutput:    true,   // Redact in the AI's response
+    replaceWith: (type) => `[MASKED:${type.toUpperCase()}]`, // optional custom token
+  },
+});
+
+const result = await guard.protect(callFn, 'My card is 4532015112830366');
+// What the AI receives: "My card is [REDACTED:CREDITCARD]"
+// result.meta.piiRedacted → [{ type: 'creditCard', value: '4532015112830366', ... }]
+```
+
+## Supported PII Types
+
+| Type | Example | Region |
+|---|---|---|
+| `email` | `john.doe@company.com` | Universal |
+| `phone` | `+1 (555) 123-4567`, `06 12 34 56 78` | International |
+| `creditCard` | `4532 0151 1283 0366` (Luhn-validated) | Universal |
+| `ssn` | `123-45-6789` | US |
+| `ipAddress` | `192.168.1.1` | Universal |
+| `iban` | `FR76 3000 6000 0112 3456 7890 189` | International |
+| `url` | `https://api.internal.com/secret?key=abc` | Universal |
+| `nir` *** | `1 85 02 75 115 423 57` | France |
+| `siret` *** | `732 829 320 00074` | France |
+| `siren` *** | `732 829 320` | France |
+| `passport` *** | `AB123456` | International |
+| `dateOfBirth` *** | `12/05/1990`, `1990-05-12` | Universal |
+
+> *** = new in v0.2.0. Credit cards are validated via the **Luhn algorithm** — no false positives on random digit sequences.
+
+## Standalone Usage
+
+```typescript
+import { redactPII, detectPII } from '@edwinfom/ai-guard/pii';
+
+// Detect without redacting
+const matches = detectPII('Contact me at john@example.com');
+// [{ type: 'email', value: 'john@example.com', start: 14, end: 30 }]
+
+// Redact directly
+const clean = redactPII('My IBAN is FR76 3000 6000 0112 3456 7890 189');
+// 'My IBAN is [REDACTED:IBAN]'
+```

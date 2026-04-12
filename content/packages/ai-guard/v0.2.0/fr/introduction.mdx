@@ -1,0 +1,72 @@
+---
+title: Introduction
+description: @edwinfom/ai-guard est un middleware de sécurité pour les réponses d'API d'IA — un wrappeur unique pour l'anonymisation des données PII, la validation de schéma, la détection d'injection de prompt, les jetons canaris, la politique de contenu, la détection d'hallucination, la sentinelle budgétaire, le filtrage de limite de débit et le journal d'audit.
+---
+
+# @edwinfom/ai-guard
+
+> Un middleware de sécurité pour les réponses d'API d'IA — l'anonymisation des informations personnel, la validation de schéma, la détection d'injection de prompt, la sentinelle budgétaire, et bien plus encore.
+
+[![npm version](https://img.shields.io/npm/v/@edwinfom/ai-guard.svg)](https://www.npmjs.com/package/@edwinfom/ai-guard)
+[![license](https://img.shields.io/npm/l/@edwinfom/ai-guard.svg)](./LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
+
+## Le Problème
+
+Lors de l'intégration d'API d'IA (OpenAI, Anthropic, Gemini) dans des applications de production, les développeurs sont confrontés à des problèmes récurrents sans solution standardisée :
+
+- **JSON mal formé** — Les LLM encadrent parfois les réponses dans des blocs markdown ou ajoutent du texte explicatif, ce qui plante votre pipeline.
+- **Fuite de données privées (PII)** — Les utilisateurs envoient des mots de passe ou des numéros de carte dans les prompts. Les réponses de l'IA peuvent renvoyer des données sensibles de votre base de données RAG.
+- **Injection de Prompt** — Les utilisateurs malveillants tentent d'écraser votre prompt système par un "Ignore the previous instructions…".
+- **Vol du prompt système** — Un attaquant trompe l'IA pour qu'elle répète vos instructions confidentielles.
+- **Contenu Toxique ou Dangereux** — Pas de modération de contenu intégrée entre le LLM et vos utilisateurs.
+- **Hallucinations de RAG** — L'IA invente des faits non présents dans vos documents sources.
+- **Facturation surprise** — L'utilisation de tokens explose sans le moindre averstissement ou limite matérielle.
+- **Abus** — Un seul utilisateur noie votre terminal de requêtes.
+
+`@edwinfom/ai-guard` agit comme une **membrane sécurisée** entre votre application et n'importe quel fournisseur d'IA. Un wrapper unique, toutes protections.
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+import { z } from 'zod';
+
+const guard = new Guardian({
+  pii:          { onInput: true, onOutput: true },
+  schema:       { validator: z.object({ city: z.string(), temp: z.number() }), repair: 'retry' },
+  injection:    { enabled: true, sensitivity: 'medium' },
+  content:      { enabled: true, sensitivity: 'medium' },
+  canary:       { enabled: true },
+  hallucination:{ sources: [ragDocument1, ragDocument2] },
+  budget:       { maxTokens: 2000, maxCostUSD: 0.05, model: 'gpt-4o-mini' },
+  rateLimit:    { maxRequests: 10, windowMs: 60_000, keyFn: (p) => getUserId(p) },
+  onAudit:      (entry) => logger.info(entry),
+});
+
+const result = await guard.protect(
+  (safePrompt) => openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: safePrompt }] }),
+  userPrompt
+);
+
+console.log(result.data);              // typé par votre schéma Zod
+console.log(result.meta.budget);       // { totalTokens: 312, estimatedCostUSD: 0.000047 }
+console.log(result.meta.piiRedacted);  // [{ type: 'email', value: 'user@...', ... }]
+console.log(result.meta.canaryLeaked); // false — le prompt system n'a pas fuité.
+```
+
+## Fonctionnalités
+
+| Fonctionnalité | Description |
+|---|---|
+| **Anonymisation PII** | Emails, téléphones, cartes de crédit, IP, URLs + **NIR, SIRET, SIREN, passeports, date de naissance.** |
+| **Validation de schéma (3-niveaux)** | Suppression de format markdown → `jsonrepair` → Réessaie via LLM |
+| **Détection d'injection** | Plus de 15 attaques détectées ave configuration sensible. |
+| **Tokens Canaris** | Des tokens invisibles permettant de tracer et de savoir si l'IA fuit ou non des informations provenant du prompt sysèmes. |
+| **Politique de Contenut** | Toxicité, racisme, etc.. |
+| **Détection d'Hallucinations** | Grounding check. |
+| **Sentinelle de Budget** | Compteur de tokens + coûts réels, etc. |
+| **Limiteur de Limites** | Limite le taux de réponses des APIs. |
+| **Journal d'Audit** | Un composant callback suivant le comportement de vos APIs d'IA. |
+| **Streaming Support** | `protectStream()` — Support du Streaming, Next.js, etc |
+| **Agnostique  Fournisseur** | OpeNai, CLAUDE ,GEMINI |
+| **Tree-Shakeable** | Support Tree-shake ! |
+| **Zéro Dépendances Runtime** | Seul Zod est optionnel. `jsonrepair` est la seul runtime de l'application ! |
