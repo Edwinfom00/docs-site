@@ -1,0 +1,99 @@
+---
+title: Streaming Support
+description: Apply all Guard protections to streamed AI responses using protectStream().
+---
+
+# Streaming Support
+
+`protectStream()` wraps streaming AI calls with full Guard protection. It buffers the stream, applies all guards to the complete response, then re-streams to the client if everything passes.
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+import OpenAI from 'openai';
+
+const openai = new OpenAI();
+const guard = new Guardian({
+  pii:       { targets: ['email', 'phone'], onOutput: true },
+  injection: { enabled: true },
+  budget:    { model: 'gpt-4o-mini', maxCostUSD: 0.05 },
+});
+
+// Next.js Route Handler
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const stream = await guard.protectStream(
+    (safePrompt) =>
+      openai.chat.completions.create({
+        model:  'gpt-4o-mini',
+        stream: true,
+        messages: [{ role: 'user', content: safePrompt }],
+      }),
+    prompt
+  );
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+```
+
+## How It Works
+
+```
+User prompt → [Guard input checks] → LLM (stream)
+                                         ↓
+                                   Buffer chunks
+                                         ↓
+                                [Guard output checks]
+                                         ↓
+                               ✅ Re-stream to client
+                               ❌ Block & throw error
+```
+
+## With Vercel AI SDK
+
+```typescript
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { guardVercelStream } from '@edwinfom/ai-guard/vercel';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const lastMessage = messages[messages.length - 1].content;
+
+  const stream = await guard.protectStream(
+    (safePrompt) => streamText({
+      model:    openai('gpt-4o-mini'),
+      messages: [{ role: 'user', content: safePrompt }],
+    }),
+    lastMessage
+  );
+
+  return guardVercelStream(stream);
+}
+```
+
+## Streaming Events
+
+Listen to guard events during streaming:
+
+```typescript
+const stream = await guard.protectStream(callFn, prompt, {
+  onChunk: (chunk) => {
+    // Called for each streamed chunk (after output checks pass)
+  },
+  onComplete: (result) => {
+    console.log(result.meta);  // Full guard metadata after stream ends
+  },
+  onError: (err) => {
+    // Guard blocked the stream
+  },
+});
+```
+
+## Limitations
+
+Streaming requires buffering the full response before re-streaming, which adds a small latency overhead equal to the model's time-to-last-token. For latency-critical use cases, use `protect()` instead.
+
+PII redaction on output is especially powerful with streaming because the user never sees the raw response — only the redacted version.

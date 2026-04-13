@@ -1,0 +1,106 @@
+---
+title: Validation de schéma
+description: Un pipeline de réparation à 3 niveaux qui extrait un JSON valide de n'importe quelle réponse de LLM, même s'il enveloppe la sortie dans du markdown ou ajoute un texte explicatif.
+---
+
+# Validation de schéma
+
+Les LLM renvoient parfois du JSON enveloppé dans des balises markdown, avec des virgules de fin, ou avec un texte explicatif avant/après. Le pipeline de validation de schéma corrige tout cela automatiquement.
+
+```typescript
+import { z } from 'zod';
+import OpenAI from 'openai';
+import { Guardian } from '@edwinfom/ai-guard';
+
+const openai = new OpenAI();
+
+const ProductSchema = z.object({
+  name:     z.string(),
+  price:    z.number(),
+  inStock:  z.boolean(),
+  tags:     z.array(z.string()),
+});
+
+const guard = new Guardian({
+  schema: {
+    validator: ProductSchema,
+    repair:    true,   // Active le pipeline de réparation 3-niveau
+    strict:    false,  // Permet des champs supplémentaires (ils seront supprimés)
+  },
+});
+
+// Même si GPT renvoie ```json\n{ ... }\n``` — Guard le gère
+const result = await guard.protect(
+  (safePrompt) => openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: safePrompt }],
+  }),
+  'Renvoie un objet produit pour un ordinateur portable'
+);
+
+// result.data est entièrement typé comme z.infer<typeof ProductSchema>
+console.log(result.data.name);    // ✅ string typée
+console.log(result.data.price);   // ✅ number typé
+```
+
+## Le pipeline de réparation à 3 niveaux
+
+Lorsque la réponse du LLM échoue à la validation du schéma, Guard exécute les réparations en séquence, s'arrêtant au premier succès :
+
+| Niveau | Stratégie | Ce qu'il gère |
+|---|---|---|
+| **1 — Nettoyage** | Supprime les balises markdown (` ```json `), coupe les espaces, supprime le texte de préfixe | Échec le plus courant (80%+ des cas) |
+| **2 — Réparation** | Librairie `jsonrepair` — 100+ schémas JSON cassés | Virgules de fin, guillemets manquants, guillemets simples, caractères non échappés |
+| **3 — Réessai LLM** | Demande au LLM de réémettre un JSON propre avec un prompt strict | Structure hallucinée, réponse complètement erronée |
+
+```typescript
+// Vous pouvez inspecter quel niveau de réparation a été utilisé
+const result = await guard.protect(callFn, prompt);
+console.log(result.meta.schemaRepairLevel);
+// → 0 (valide), 1 (nettoyé), 2 (réparé), 3 (réessai LLM)
+```
+
+## Utilisation autonome
+
+```typescript
+import { enforceSchema } from '@edwinfom/ai-guard/schema';
+import { z } from 'zod';
+
+const { data, repairLevel } = await enforceSchema(
+  '```json\n{"name": "Ordinateur", "price": 999,}\n```',
+  z.object({ name: z.string(), price: z.number() })
+);
+// data → { name: 'Ordinateur', price: 999 }
+// repairLevel → 2
+```
+
+## Configuration
+
+```typescript
+const guard = new Guardian({
+  schema: {
+    validator:   ProductSchema,   // N'importe quel schéma Zod
+    repair:      true,            // Par défaut : true
+    strict:      false,           // Le mode strict supprime les champs supplémentaires
+    maxRetries:  1,               // Tentatives de réessai LLM (Niveau 3)
+    retryPrompt: (raw) =>         // Prompt de réessai personnalisé
+      `Corrigez ce JSON :\n${raw}`,
+  },
+});
+```
+
+## Gestion des erreurs
+
+```typescript
+import { SchemaError } from '@edwinfom/ai-guard';
+
+try {
+  await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof SchemaError) {
+    console.log(err.code);         // 'SCHEMA_VALIDATION_FAILED'
+    console.log(err.context.raw);  // La chaîne brute qui a échoué
+    console.log(err.context.issues); // Tableau de problèmes Zod
+  }
+}
+```

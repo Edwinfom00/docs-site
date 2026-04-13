@@ -1,0 +1,95 @@
+---
+title: Rate Limiter
+description: Per-user sliding-window rate limits on requests and tokens to prevent abuse and runaway costs.
+---
+
+# Rate Limiter
+
+Prevents a single user from flooding your AI endpoint with requests. Uses a sliding-window algorithm with per-user token and request tracking.
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 10,         // Max 10 requests...
+    windowMs:    60_000,     // ...per 60 seconds
+    maxTokens:   50_000,     // Also limit total tokens per window
+    keyFn: (prompt) => getUserId(prompt),  // How to identify the user
+  },
+});
+```
+
+## Configuration
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `maxRequests` | `number` | `100` | Max requests per window |
+| `windowMs` | `number` | `60000` | Window size in milliseconds |
+| `maxTokens` | `number` | `undefined` | Max total tokens per window |
+| `keyFn` | `(prompt: string) => string` | `() => 'global'` | User identification function |
+| `store` | `RateLimitStore` | In-memory | Custom storage backend |
+
+## Request-Based Limiting
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 5,
+    windowMs:    60_000,   // 5 requests per minute per user
+    keyFn:       (p) => p.userId,
+  },
+});
+
+// On 6th request within the window:
+try {
+  await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof RateLimitError) {
+    const retryAfter = Math.ceil(err.context.resetInMs / 1000);
+    return Response.json(
+      { error: 'Too many requests', retryAfter },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    );
+  }
+}
+```
+
+## Token-Based Limiting
+
+```typescript
+const guard = new Guardian({
+  rateLimit: {
+    maxTokens: 100_000,   // 100K tokens per user per hour
+    windowMs:  3_600_000,
+    keyFn:     (p) => p.userId,
+  },
+});
+```
+
+## Custom Storage (Redis)
+
+Replace the default in-memory store with Redis for multi-instance deployments:
+
+```typescript
+import { RedisRateLimitStore } from '@edwinfom/ai-guard/rate-limit';
+import { Redis } from 'ioredis';
+
+const guard = new Guardian({
+  rateLimit: {
+    maxRequests: 20,
+    windowMs:    60_000,
+    store: new RedisRateLimitStore(new Redis(process.env.REDIS_URL)),
+  },
+});
+```
+
+## Result Metadata
+
+```typescript
+const result = await guard.protect(callFn, prompt);
+console.log(result.meta.rateLimit);
+// {
+//   remaining: 7,       // Requests left in current window
+//   reset: 1737000000,  // Unix timestamp when window resets
+//   total: 10,          // Total allowed per window
+// }
+```

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Package, NavSection } from '@/lib/content';
 import { useState } from 'react';
 
@@ -11,15 +10,22 @@ interface DocsSidebarProps {
   lang: string;
   navigation: NavSection[];
   currentSlug: string;
+  latestVersionDate?: string;
 }
 
-export default function DocsSidebar({ pkg, version, lang, navigation, currentSlug }: DocsSidebarProps) {
+function isNew(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  return Date.now() - new Date(dateStr).getTime() < 7 * 24 * 60 * 60 * 1000;
+}
+
+export default function DocsSidebar({ pkg, version, lang, navigation, currentSlug, latestVersionDate }: DocsSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [versionOpen, setVersionOpen] = useState(false);
   const basePath = `/docs/${pkg.slug}/${version}/${lang}`;
+  const showNewBadge = version === `v${pkg.latestVersion}` && isNew(latestVersionDate);
 
   return (
     <>
-      {/* Mobile toggle */}
       <button
         id="sidebar-toggle"
         className="sidebar-toggle"
@@ -33,7 +39,7 @@ export default function DocsSidebar({ pkg, version, lang, navigation, currentSlu
       </button>
 
       <aside className={`docs-sidebar${mobileOpen ? ' mobile-open' : ''}`} id="docs-sidebar">
-        {/* Package selector */}
+        {/* Package header + version switcher */}
         <div className="sidebar-package">
           <Link href={`/docs/${pkg.slug}/${version}/${lang}/introduction`} className="package-name-link">
             <div className="package-icon">
@@ -41,11 +47,62 @@ export default function DocsSidebar({ pkg, version, lang, navigation, currentSlu
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
               </svg>
             </div>
-            <div>
-              <div className="package-display-name">{pkg.name}</div>
-              <div className="package-version-tag">{version}</div>
-            </div>
+            <div className="package-display-name">{pkg.name}</div>
           </Link>
+
+          {/* Version switcher */}
+          <div className="version-switcher">
+            <button
+              className="version-switcher-btn"
+              onClick={() => setVersionOpen(v => !v)}
+              aria-expanded={versionOpen}
+              aria-haspopup="listbox"
+            >
+              <span className="version-switcher-current">
+                {version}
+                {showNewBadge && <span className="version-new-badge">new</span>}
+              </span>
+              <svg
+                width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth={2}
+                style={{ transform: versionOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {versionOpen && (
+              <>
+                <div className="version-dropdown-backdrop" onClick={() => setVersionOpen(false)} />
+                <ul className="version-dropdown" role="listbox" aria-label="Select version">
+                  {pkg.versions.map((v) => {
+                    const vLabel = v.startsWith('v') ? v : `v${v}`;
+                    const isCurrent = vLabel === version;
+                    const isLatest = vLabel === `v${pkg.latestVersion}`;
+                    const href = `/docs/${pkg.slug}/${vLabel}/${lang}/${currentSlug}`;
+                    return (
+                      <li key={v} role="option" aria-selected={isCurrent}>
+                        <a
+                          href={href}
+                          className={`version-option${isCurrent ? ' active' : ''}`}
+                          onClick={() => setVersionOpen(false)}
+                        >
+                          <span>{vLabel}</span>
+                          <span className="version-option-badges">
+                            {isLatest && <span className="version-option-badge latest">latest</span>}
+                            {isLatest && isNew(latestVersionDate) && (
+                              <span className="version-option-badge new">new</span>
+                            )}
+                            {isCurrent && <span className="version-option-check">✓</span>}
+                          </span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
@@ -63,8 +120,12 @@ export default function DocsSidebar({ pkg, version, lang, navigation, currentSlu
                         href={href}
                         className={`nav-link${isActive ? ' active' : ''}`}
                         onClick={() => setMobileOpen(false)}
+                        style={{ display: 'flex', alignItems: 'center' }}
                       >
                         {item.title}
+                        {showNewBadge && item.slug === 'playground' && (
+                          <span className="nav-link-new-badge">new</span>
+                        )}
                       </Link>
                     </li>
                   );

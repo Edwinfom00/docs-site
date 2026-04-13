@@ -39,19 +39,24 @@ export async function markdownToHtml(content: string): Promise<string> {
 export function extractToc(content: string): TocItem[] {
   const headingRegex = /^(#{1,3})\s+(.+)$/gm;
   const toc: TocItem[] = [];
+  const seen = new Map<string, number>();
   let match;
-  
+
   while ((match = headingRegex.exec(content)) !== null) {
     const level = match[1].length;
     const text = match[2].replace(/`([^`]+)`/g, '$1').trim();
-    const id = text
+    const base = text
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
-    
+
+    const count = seen.get(base) ?? 0;
+    const id = count === 0 ? base : `${base}-${count}`;
+    seen.set(base, count + 1);
+
     toc.push({ id, text, level });
   }
-  
+
   return toc;
 }

@@ -4,6 +4,7 @@ import { markdownToHtml, extractToc } from '@/lib/mdx';
 import DocsHeader from '@/components/DocsHeader';
 import DocsSidebar from '@/components/DocsSidebar';
 import DocContent from '@/components/DocContent';
+import DocContentWithPlayground from '@/components/DocContentWithPlayground';
 import TableOfContents from '@/components/TableOfContents';
 import type { Metadata } from 'next';
 
@@ -20,9 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { package: packageSlug, version, lang, slug } = await params;
   const pkg = getPackage(packageSlug);
   const page = getDocPage(packageSlug, version, slug, lang);
-  
   if (!pkg || !page) return {};
-  
   return {
     title: `${page.title} — ${pkg.name}`,
     description: page.description || pkg.description,
@@ -31,13 +30,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function DocPage({ params }: PageProps) {
   const { package: packageSlug, version, lang, slug } = await params;
-  
+
   const pkg = getPackage(packageSlug);
   if (!pkg) notFound();
 
   const navigation = getNavigation(packageSlug, version, lang);
   const page = getDocPage(packageSlug, version, slug, lang);
-  
+
   if (!page) {
     const slugs = getAllDocSlugs(packageSlug, version, lang);
     if (slugs.includes('introduction')) {
@@ -55,12 +54,13 @@ export default async function DocPage({ params }: PageProps) {
   const nextItem = currentIndex < allItems.length - 1 ? allItems[currentIndex + 1] : null;
   const basePath = `/docs/${packageSlug}/${version}/${lang}`;
 
+  const hasPlayground = /<\s*SmokePlayground\s*\/?\s*>/i.test(html) || /<\s*smokeplayground/i.test(html);
+  const ContentComponent = hasPlayground ? DocContentWithPlayground : DocContent;
+
   return (
     <>
       <DocsHeader lang={lang} packageSlug={packageSlug} version={version} slug={slug} />
-      {/* Full-width wrapper that stretches the sidebar borders to the edges */}
       <div className="docs-page-wrapper">
-        {/* Centered container — sidebar + content + toc */}
         <div className="docs-layout">
           <DocsSidebar
             pkg={pkg}
@@ -68,9 +68,10 @@ export default async function DocPage({ params }: PageProps) {
             lang={lang}
             navigation={navigation}
             currentSlug={slug}
+            latestVersionDate={pkg.latestVersionDate}
           />
           <div className="docs-main">
-            <DocContent
+            <ContentComponent
               html={html}
               title={page.title}
               description={page.description}

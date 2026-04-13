@@ -12,53 +12,64 @@ interface SearchResult {
 
 // Static search index — in a real app this would be generated at build time
 const SEARCH_INDEX_EN: SearchResult[] = [
-  { title: 'Introduction', href: '/docs/ai-guard/v0.2.0/en/introduction', section: 'Getting Started', description: 'Overview of @edwinfom/ai-guard' },
-  { title: 'Installation', href: '/docs/ai-guard/v0.2.0/en/installation', section: 'Getting Started', description: 'Install with npm, pnpm, yarn or bun' },
-  { title: 'Quick Start', href: '/docs/ai-guard/v0.2.0/en/quick-start', section: 'Getting Started', description: 'Get up and running in minutes' },
-  { title: 'Schema Enforcement', href: '/docs/ai-guard/v0.2.0/en/schema-enforcement', section: 'Core Features', description: '3-level JSON repair pipeline' },
-  { title: 'PII Redaction', href: '/docs/ai-guard/v0.2.0/en/pii-redaction', section: 'Core Features', description: 'Scrub emails, phones, credit cards and more' },
-  { title: 'Prompt Injection', href: '/docs/ai-guard/v0.2.0/en/prompt-injection', section: 'Core Features', description: 'Block injection attacks' },
-  { title: 'Canary Tokens', href: '/docs/ai-guard/v0.2.0/en/canary-tokens', section: 'Core Features', description: 'Detect system prompt leakage' },
-  { title: 'Content Policy', href: '/docs/ai-guard/v0.2.0/en/content-policy', section: 'Core Features', description: 'Toxicity and harmful content detection' },
-  { title: 'Hallucination Detection', href: '/docs/ai-guard/v0.2.0/en/hallucination-detection', section: 'Core Features', description: 'RAG grounding check' },
-  { title: 'Budget Sentinel', href: '/docs/ai-guard/v0.2.0/en/budget-sentinel', section: 'Core Features', description: 'Token counting and cost limits' },
-  { title: 'Rate Limiter', href: '/docs/ai-guard/v0.2.0/en/rate-limiter', section: 'Core Features', description: 'Per-user sliding-window limits' },
-  { title: 'Audit Log', href: '/docs/ai-guard/v0.2.0/en/audit-log', section: 'Advanced', description: 'Structured callback after every call' },
-  { title: 'Streaming Support', href: '/docs/ai-guard/v0.2.0/en/streaming', section: 'Advanced', description: 'protectStream() for async streams' },
-  { title: 'Dry-run Inspect', href: '/docs/ai-guard/v0.2.0/en/inspect', section: 'Advanced', description: 'Full risk report without blocking' },
-  { title: 'Tree-Shakeable Sub-paths', href: '/docs/ai-guard/v0.2.0/en/tree-shaking', section: 'Advanced', description: 'Import only what you need' },
-  { title: 'Custom Adapter', href: '/docs/ai-guard/v0.2.0/en/custom-adapter', section: 'Advanced', description: 'Custom response parser' },
-  { title: 'Vercel AI SDK', href: '/docs/ai-guard/v0.2.0/en/vercel-adapter', section: 'Integrations', description: 'guardVercelStream adapter' },
-  { title: 'LangChain', href: '/docs/ai-guard/v0.2.0/en/langchain-adapter', section: 'Integrations', description: 'createGuardedParser adapter' },
-  { title: 'Next.js Example', href: '/docs/ai-guard/v0.2.0/en/nextjs-example', section: 'Integrations', description: 'Complete API route example' },
-  { title: 'API Reference', href: '/docs/ai-guard/v0.2.0/en/api-reference', section: 'Reference', description: 'Full Guardian class API' },
-  { title: 'Error Types', href: '/docs/ai-guard/v0.2.0/en/error-types', section: 'Reference', description: 'GuardianError, InjectionError, BudgetError...' },
-  { title: 'Changelog', href: '/docs/ai-guard/v0.2.0/en/changelog', section: 'Reference', description: 'Release history' },
+  // v0.2.1
+  { title: 'Introduction', href: '/docs/ai-guard/v0.2.1/en/introduction', section: 'Getting Started', description: 'Overview of @edwinfom/ai-guard' },
+  { title: 'Installation', href: '/docs/ai-guard/v0.2.1/en/installation', section: 'Getting Started', description: 'Install with npm, pnpm, yarn or bun' },
+  { title: 'Quick Start', href: '/docs/ai-guard/v0.2.1/en/quick-start', section: 'Getting Started', description: 'Get up and running in minutes' },
+  { title: 'Schema Enforcement', href: '/docs/ai-guard/v0.2.1/en/schema-enforcement', section: 'Core Features', description: '3-level JSON repair pipeline' },
+  { title: 'PII Redaction', href: '/docs/ai-guard/v0.2.1/en/pii-redaction', section: 'Core Features', description: 'Scrub emails, phones, credit cards and more' },
+  { title: 'Prompt Injection', href: '/docs/ai-guard/v0.2.1/en/prompt-injection', section: 'Core Features', description: 'Block injection attacks' },
+  { title: 'Canary Tokens', href: '/docs/ai-guard/v0.2.1/en/canary-tokens', section: 'Core Features', description: 'Detect system prompt leakage' },
+  { title: 'Content Policy', href: '/docs/ai-guard/v0.2.1/en/content-policy', section: 'Core Features', description: 'Toxicity and harmful content detection' },
+  { title: 'Hallucination Detection', href: '/docs/ai-guard/v0.2.1/en/hallucination-detection', section: 'Core Features', description: 'RAG grounding check' },
+  { title: 'Budget Sentinel', href: '/docs/ai-guard/v0.2.1/en/budget-sentinel', section: 'Core Features', description: 'Token counting, cost limits, custom model pricing' },
+  { title: 'Rate Limiter', href: '/docs/ai-guard/v0.2.1/en/rate-limiter', section: 'Core Features', description: 'Per-user sliding-window limits' },
+  { title: 'Audit Log', href: '/docs/ai-guard/v0.2.1/en/audit-log', section: 'Advanced', description: 'Structured callback after every call' },
+  { title: 'Streaming Support', href: '/docs/ai-guard/v0.2.1/en/streaming', section: 'Advanced', description: 'protectStream() for async streams' },
+  { title: 'Dry-run Inspect', href: '/docs/ai-guard/v0.2.1/en/inspect', section: 'Advanced', description: 'Full risk report without blocking' },
+  { title: 'Tree-Shakeable Sub-paths', href: '/docs/ai-guard/v0.2.1/en/tree-shaking', section: 'Advanced', description: 'Import only what you need' },
+  { title: 'Custom Adapter', href: '/docs/ai-guard/v0.2.1/en/custom-adapter', section: 'Advanced', description: 'Custom response parser' },
+  { title: 'Vercel AI SDK', href: '/docs/ai-guard/v0.2.1/en/vercel-adapter', section: 'Integrations', description: 'guardVercelStream adapter' },
+  { title: 'LangChain', href: '/docs/ai-guard/v0.2.1/en/langchain-adapter', section: 'Integrations', description: 'createGuardedParser adapter' },
+  { title: 'Next.js Example', href: '/docs/ai-guard/v0.2.1/en/nextjs-example', section: 'Integrations', description: 'Complete API route example' },
+  { title: 'API Reference', href: '/docs/ai-guard/v0.2.1/en/api-reference', section: 'Reference', description: 'Full Guardian class API' },
+  { title: 'Error Types', href: '/docs/ai-guard/v0.2.1/en/error-types', section: 'Reference', description: 'GuardianError, InjectionError, BudgetError...' },
+  { title: 'Playground', href: '/docs/ai-guard/v0.2.1/en/playground', section: 'Reference', description: 'Run all standalone tests in your browser' },
+  { title: 'Changelog', href: '/docs/ai-guard/v0.2.1/en/changelog', section: 'Reference', description: 'Release history — v0.2.1, v0.2.0, v0.1.0' },
+  // v0.2.0
+  { title: 'Introduction (v0.2.0)', href: '/docs/ai-guard/v0.2.0/en/introduction', section: 'v0.2.0', description: 'Overview of @edwinfom/ai-guard' },
+  { title: 'Budget Sentinel (v0.2.0)', href: '/docs/ai-guard/v0.2.0/en/budget-sentinel', section: 'v0.2.0', description: 'Token counting and cost limits' },
+  { title: 'Changelog (v0.2.0)', href: '/docs/ai-guard/v0.2.0/en/changelog', section: 'v0.2.0', description: 'Release history' },
 ];
 
 const SEARCH_INDEX_FR: SearchResult[] = [
-  { title: 'Introduction', href: '/docs/ai-guard/v0.2.0/fr/introduction', section: 'Démarrage', description: 'Aperçu de @edwinfom/ai-guard' },
-  { title: 'Installation', href: '/docs/ai-guard/v0.2.0/fr/installation', section: 'Démarrage', description: 'Installer avec npm, pnpm, yarn ou bun' },
-  { title: 'Démarrage Rapide', href: '/docs/ai-guard/v0.2.0/fr/quick-start', section: 'Démarrage', description: 'Soyez opérationnel en quelques minutes' },
-  { title: 'Application de Schéma', href: '/docs/ai-guard/v0.2.0/fr/schema-enforcement', section: 'Fonctionnalités Principales', description: 'Pipeline de réparation JSON à 3 niveaux' },
-  { title: 'Caviardage PII', href: '/docs/ai-guard/v0.2.0/fr/pii-redaction', section: 'Fonctionnalités Principales', description: 'Masquer e-mails, téléphones, cartes de crédit, etc.' },
-  { title: 'Injection de Prompt', href: '/docs/ai-guard/v0.2.0/fr/prompt-injection', section: 'Fonctionnalités Principales', description: 'Bloquer les attaques par injection' },
-  { title: 'Jetons Canaris', href: '/docs/ai-guard/v0.2.0/fr/canary-tokens', section: 'Fonctionnalités Principales', description: 'Détecter les fuites du prompt système' },
-  { title: 'Politique de Contenu', href: '/docs/ai-guard/v0.2.0/fr/content-policy', section: 'Fonctionnalités Principales', description: 'Détection de toxicité et de contenus nuisibles' },
-  { title: 'Détection d\'Hallucinations', href: '/docs/ai-guard/v0.2.0/fr/hallucination-detection', section: 'Fonctionnalités Principales', description: 'Vérification d\'ancrage RAG' },
-  { title: 'Sentinelle de Budget', href: '/docs/ai-guard/v0.2.0/fr/budget-sentinel', section: 'Fonctionnalités Principales', description: 'Comptage de tokens et limites de coûts' },
-  { title: 'Limiteur de Taux', href: '/docs/ai-guard/v0.2.0/fr/rate-limiter', section: 'Fonctionnalités Principales', description: 'Limites par utilisateur avec fenêtre glissante' },
-  { title: 'Journal d\'Audit', href: '/docs/ai-guard/v0.2.0/fr/audit-log', section: 'Avancé', description: 'Callback structuré après chaque appel' },
-  { title: 'Prise en charge du Streaming', href: '/docs/ai-guard/v0.2.0/fr/streaming', section: 'Avancé', description: 'protectStream() pour les flux asynchrones' },
-  { title: 'Inspection à Blanc (Dry-run)', href: '/docs/ai-guard/v0.2.0/fr/inspect', section: 'Avancé', description: 'Rapport de risque complet sans blocage' },
-  { title: 'Sous-chemins (Tree-Shakeable)', href: '/docs/ai-guard/v0.2.0/fr/tree-shaking', section: 'Avancé', description: 'Importez uniquement ce dont vous avez besoin' },
-  { title: 'Adaptateur Personnalisé', href: '/docs/ai-guard/v0.2.0/fr/custom-adapter', section: 'Avancé', description: 'Analyseur de réponse personnalisé' },
-  { title: 'Vercel AI SDK', href: '/docs/ai-guard/v0.2.0/fr/vercel-adapter', section: 'Intégrations', description: 'Adaptateur guardVercelStream' },
-  { title: 'LangChain', href: '/docs/ai-guard/v0.2.0/fr/langchain-adapter', section: 'Intégrations', description: 'Adaptateur createGuardedParser' },
-  { title: 'Exemple Next.js', href: '/docs/ai-guard/v0.2.0/fr/nextjs-example', section: 'Intégrations', description: 'Exemple complet de route API' },
-  { title: 'Référence API', href: '/docs/ai-guard/v0.2.0/fr/api-reference', section: 'Référence', description: 'API complète de la classe Guardian' },
-  { title: 'Types d\'Erreurs', href: '/docs/ai-guard/v0.2.0/fr/error-types', section: 'Référence', description: 'GuardianError, InjectionError, BudgetError...' },
-  { title: 'Changelog', href: '/docs/ai-guard/v0.2.0/fr/changelog', section: 'Référence', description: 'Historique des versions' },
+  // v0.2.1
+  { title: 'Introduction', href: '/docs/ai-guard/v0.2.1/fr/introduction', section: 'Démarrage', description: 'Aperçu de @edwinfom/ai-guard' },
+  { title: 'Installation', href: '/docs/ai-guard/v0.2.1/fr/installation', section: 'Démarrage', description: 'Installer avec npm, pnpm, yarn ou bun' },
+  { title: 'Démarrage Rapide', href: '/docs/ai-guard/v0.2.1/fr/quick-start', section: 'Démarrage', description: 'Soyez opérationnel en quelques minutes' },
+  { title: 'Application de Schéma', href: '/docs/ai-guard/v0.2.1/fr/schema-enforcement', section: 'Fonctionnalités Principales', description: 'Pipeline de réparation JSON à 3 niveaux' },
+  { title: 'Anonymisation PII', href: '/docs/ai-guard/v0.2.1/fr/pii-redaction', section: 'Fonctionnalités Principales', description: 'Masquer e-mails, téléphones, cartes de crédit, etc.' },
+  { title: 'Injection de Prompt', href: '/docs/ai-guard/v0.2.1/fr/prompt-injection', section: 'Fonctionnalités Principales', description: 'Bloquer les attaques par injection' },
+  { title: 'Jetons Canaris', href: '/docs/ai-guard/v0.2.1/fr/canary-tokens', section: 'Fonctionnalités Principales', description: 'Détecter les fuites du prompt système' },
+  { title: 'Politique de Contenu', href: '/docs/ai-guard/v0.2.1/fr/content-policy', section: 'Fonctionnalités Principales', description: 'Détection de toxicité et de contenus nuisibles' },
+  { title: "Détection d'Hallucinations", href: '/docs/ai-guard/v0.2.1/fr/hallucination-detection', section: 'Fonctionnalités Principales', description: "Vérification d'ancrage RAG" },
+  { title: 'Sentinelle Budgétaire', href: '/docs/ai-guard/v0.2.1/fr/budget-sentinel', section: 'Fonctionnalités Principales', description: 'Comptage de tokens, limites de coûts, tarifs personnalisés' },
+  { title: 'Limiteur de Débit', href: '/docs/ai-guard/v0.2.1/fr/rate-limiter', section: 'Fonctionnalités Principales', description: 'Limites par utilisateur avec fenêtre glissante' },
+  { title: "Journal d'Audit", href: '/docs/ai-guard/v0.2.1/fr/audit-log', section: 'Avancé', description: 'Callback structuré après chaque appel' },
+  { title: 'Support du Streaming', href: '/docs/ai-guard/v0.2.1/fr/streaming', section: 'Avancé', description: 'protectStream() pour les flux asynchrones' },
+  { title: 'Inspection Dry-run', href: '/docs/ai-guard/v0.2.1/fr/inspect', section: 'Avancé', description: 'Rapport de risque complet sans blocage' },
+  { title: 'Sous-chemins Tree-Shakeable', href: '/docs/ai-guard/v0.2.1/fr/tree-shaking', section: 'Avancé', description: 'Importez uniquement ce dont vous avez besoin' },
+  { title: 'Adaptateur Personnalisé', href: '/docs/ai-guard/v0.2.1/fr/custom-adapter', section: 'Avancé', description: 'Analyseur de réponse personnalisé' },
+  { title: 'Vercel AI SDK', href: '/docs/ai-guard/v0.2.1/fr/vercel-adapter', section: 'Intégrations', description: 'Adaptateur guardVercelStream' },
+  { title: 'LangChain', href: '/docs/ai-guard/v0.2.1/fr/langchain-adapter', section: 'Intégrations', description: 'Adaptateur createGuardedParser' },
+  { title: 'Exemple Next.js', href: '/docs/ai-guard/v0.2.1/fr/nextjs-example', section: 'Intégrations', description: 'Exemple complet de route API' },
+  { title: 'Référence API', href: '/docs/ai-guard/v0.2.1/fr/api-reference', section: 'Référence', description: 'API complète de la classe Guardian' },
+  { title: "Types d'Erreurs", href: '/docs/ai-guard/v0.2.1/fr/error-types', section: 'Référence', description: 'GuardianError, InjectionError, BudgetError...' },
+  { title: 'Playground Interactif', href: '/docs/ai-guard/v0.2.1/fr/playground', section: 'Référence', description: 'Exécutez tous les tests dans votre navigateur' },
+  { title: 'Journal des Modifications', href: '/docs/ai-guard/v0.2.1/fr/changelog', section: 'Référence', description: 'Historique des versions — v0.2.1, v0.2.0, v0.1.0' },
+  // v0.2.0
+  { title: 'Introduction (v0.2.0)', href: '/docs/ai-guard/v0.2.0/fr/introduction', section: 'v0.2.0', description: 'Aperçu de @edwinfom/ai-guard' },
+  { title: 'Journal des Modifications (v0.2.0)', href: '/docs/ai-guard/v0.2.0/fr/changelog', section: 'v0.2.0', description: 'Historique des versions' },
 ];
 
 interface SearchModalProps {
@@ -216,8 +227,8 @@ export default function SearchModal({ lang = 'en' }: SearchModalProps) {
           <div className="search-hints">
             <div className="search-hint-group">
               <span className="search-hint-label">{tRecent}</span>
-              <a href={`/docs/ai-guard/v0.2.0/${lang}/introduction`} className="search-hint-link" onClick={() => setOpen(false)}>
-                Introduction — @edwinfom/ai-guard
+              <a href={`/docs/ai-guard/v0.2.1/${lang}/introduction`} className="search-hint-link" onClick={() => setOpen(false)}>
+                Introduction — @edwinfom/ai-guard v0.2.1
               </a>
             </div>
           </div>

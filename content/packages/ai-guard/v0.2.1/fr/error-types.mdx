@@ -1,0 +1,54 @@
+---
+title: Types d'Erreurs
+description: Tous les types d'erreurs exportés par @edwinfom/ai-guard — GuardianError, SchemaValidationError, PIIError, InjectionError, BudgetError.
+---
+
+# Types d'Erreurs
+
+```typescript
+import {
+  GuardianError,         // Base — toutes les erreurs en héritent
+  SchemaValidationError, // réparation échouée après toutes les tentatives
+  PIIError,              // PII détectées (si configuré pour lever une erreur)
+  InjectionError,        // injection de prompt détectée
+  BudgetError,           // limite de tokens ou de coûts dépassée
+} from '@edwinfom/ai-guard';
+
+// Toutes les erreurs ont :
+err.code;     // 'SCHEMA_REPAIR_FAILED' | 'PROMPT_INJECTION_DETECTED' | 'BUDGET_EXCEEDED'
+              // | 'CONTENT_POLICY_VIOLATION' | 'HALLUCINATION_SUSPECTED'
+              // | 'RATE_LIMIT_EXCEEDED' | 'RETRY_LIMIT_EXCEEDED'
+err.context;  // objet détaillé avec  le contexte de l'échec
+```
+
+## Codes d'Erreur
+
+| Code | Classe de l'Erreur | Levée Quand |
+|---|---|---|
+| `SCHEMA_REPAIR_FAILED` | `SchemaValidationError` | Les 3 niveaux de réparation ont échoué |
+| `PROMPT_INJECTION_DETECTED` | `InjectionError` | Le score d'injection dépasse le seuil |
+| `BUDGET_EXCEEDED` | `BudgetError` | Limite de coût ou de tokens atteinte |
+| `CONTENT_POLICY_VIOLATION` | `GuardianError` | Contenu nuisible détecté |
+| `HALLUCINATION_SUSPECTED` | `GuardianError` | Échec de la vérification d'ancrage (si `throwOnDetection: true`) |
+| `RATE_LIMIT_EXCEEDED` | `GuardianError` | Limite de taux de requêtes atteinte |
+| `RETRY_LIMIT_EXCEEDED` | `GuardianError` | Nombre maximum de tentatives (retries) dépassé |
+
+## Gestion des Erreurs
+
+```typescript
+import { Guardian, InjectionError, BudgetError, GuardianError } from '@edwinfom/ai-guard';
+
+try {
+  const result = await guard.protect(callFn, prompt);
+} catch (err) {
+  if (err instanceof InjectionError)
+    return Response.json({ error: 'Requête invalide.' }, { status: 400 });
+  if (err instanceof BudgetError)
+    return Response.json({ error: 'Service temporairement limité.' }, { status: 429 });
+  if (err instanceof GuardianError && err.code === 'RATE_LIMIT_EXCEEDED')
+    return Response.json({ error: 'Trop de requêtes.' }, { status: 429 });
+  if (err instanceof GuardianError && err.code === 'CONTENT_POLICY_VIOLATION')
+    return Response.json({ error: 'Contenu non autorisé.' }, { status: 400 });
+  throw err; // relève les erreurs inconnues
+}
+```

@@ -1,0 +1,106 @@
+---
+title: Audit Log
+description: Receive a structured callback after every protect() call with full guard metadata for logging, analytics, and compliance.
+---
+
+# Audit Log
+
+The `onAudit` callback fires after every `protect()` call — success or failure — with a complete structured log entry. Use it for analytics, security monitoring, and compliance records.
+
+```typescript
+import pino from 'pino';
+
+const logger = pino();
+
+const guard = new Guardian({
+  onAudit: (entry) => {
+    logger.info({
+      type:       'ai_guard_audit',
+      requestId:  entry.requestId,
+      timestamp:  entry.timestamp,
+      duration:   entry.durationMs,
+      passed:     entry.passed,
+      blocked:    entry.blockedBy,
+      pii:        entry.meta.piiRedacted?.length ?? 0,
+      tokens:     entry.meta.budget?.totalTokens,
+      cost:       entry.meta.budget?.estimatedCostUSD,
+    });
+  },
+});
+```
+
+## Audit Entry Structure
+
+```typescript
+interface AuditEntry {
+  requestId:   string;           // Unique request ID (UUIDv4)
+  timestamp:   number;           // Unix timestamp (ms)
+  durationMs:  number;           // Total guard execution time
+  passed:      boolean;          // Did the request pass all guards?
+  blockedBy:   string | null;    // Which guard blocked it (if any)
+  prompt:      string | null;    // Original prompt (opt-in, see below)
+  response:    string | null;    // AI response (opt-in)
+  meta: {
+    piiRedacted?:      PiiMatch[];
+    schemaRepairLevel?: 0 | 1 | 2 | 3;
+    injectionScore?:   number;
+    canaryLeaked?:     boolean;
+    contentPolicy?:    ContentPolicyResult;
+    hallucination?:    HallucinationResult;
+    budget?:           BudgetUsage;
+    rateLimit?:        RateLimitResult;
+  };
+  error?: {
+    code:    string;
+    message: string;
+  };
+}
+```
+
+## Privacy Controls
+
+By default, prompts and responses are **not** logged. Opt in explicitly:
+
+```typescript
+const guard = new Guardian({
+  onAudit: (entry) => logger.info(entry),
+  audit: {
+    logPrompt:   false,   // Default — don't store raw prompts
+    logResponse: false,   // Default — don't store raw responses
+    logPromptHash: true,  // Store SHA-256 hash instead (for dedup)
+  },
+});
+```
+
+## Save to Database
+
+```typescript
+const guard = new Guardian({
+  onAudit: async (entry) => {
+    await db.insert('ai_audit_log').values({
+      request_id:   entry.requestId,
+      timestamp:    new Date(entry.timestamp),
+      passed:       entry.passed,
+      blocked_by:   entry.blockedBy,
+      total_tokens: entry.meta.budget?.totalTokens ?? 0,
+      cost_usd:     entry.meta.budget?.estimatedCostUSD ?? 0,
+      pii_count:    entry.meta.piiRedacted?.length ?? 0,
+    });
+  },
+});
+```
+
+## Send to External Service
+
+```typescript
+const guard = new Guardian({
+  onAudit: (entry) => {
+    // Datadog, Segment, PostHog, etc.
+    analytics.track('ai_request', {
+      blocked:     !entry.passed,
+      duration_ms: entry.durationMs,
+      ...entry.meta,
+    });
+  },
+});
+```

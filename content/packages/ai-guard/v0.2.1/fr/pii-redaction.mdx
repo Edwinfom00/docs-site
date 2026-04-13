@@ -1,0 +1,56 @@
+---
+title: Anonymisation PII
+description: Purgez les données sensibles dans les deux sens — avant qu'elles ne quittent votre serveur et avant qu'elles n'atteignent votre interface utilisateur.
+---
+
+# Anonymisation PII (Données Personnelles)
+
+Purge les données sensibles dans les deux sens — le prompt **avant qu'il ne quitte votre serveur** et la réponse **avant qu'elle n'atteigne votre interface utilisateur**.
+
+```typescript
+const guard = new Guardian({
+  pii: {
+    targets:     ['email', 'phone', 'creditCard', 'nir', 'siret', 'iban'],
+    onInput:     true,   // Anonymiser dans le prompt de l'utilisateur
+    onOutput:    true,   // Anonymiser dans la réponse de l'IA
+    replaceWith: (type) => `[MASQUÉ:${type.toUpperCase()}]`, // jeton personnalisé optionnel
+  },
+});
+
+const result = await guard.protect(callFn, 'Ma carte est 4532015112830366');
+// Ce que l'IA reçoit : "Ma carte est [MASQUÉ:CREDITCARD]"
+// result.meta.piiRedacted → [{ type: 'creditCard', value: '4532015112830366', ... }]
+```
+
+## Types de PII supportés
+
+| Type | Exemple | Région |
+|---|---|---|
+| `email` | `john.doe@company.com` | Universel |
+| `phone` | `+1 (555) 123-4567`, `06 12 34 56 78` | International |
+| `creditCard` | `4532 0151 1283 0366` (Validé par Luhn) | Universel |
+| `ssn` | `123-45-6789` | US |
+| `ipAddress` | `192.168.1.1` | Universel |
+| `iban` | `FR76 3000 6000 0112 3456 7890 189` | International |
+| `url` | `https://api.internal.com/secret?key=abc` | Universel |
+| `nir` *** | `1 85 02 75 115 423 57` | France |
+| `siret` *** | `732 829 320 00074` | France |
+| `siren` *** | `732 829 320` | France |
+| `passport` *** | `AB123456` | International |
+| `dateOfBirth` *** | `12/05/1990`, `1990-05-12` | Universel |
+
+> *** = nouveau dans la v0.2.0. Les cartes de crédit sont validées via **l'algorithme de Luhn** — pas de faux positifs sur des séquences de chiffres aléatoires.
+
+## Utilisation autonome
+
+```typescript
+import { redactPII, detectPII } from '@edwinfom/ai-guard/pii';
+
+// Détecter sans anonymiser
+const matches = detectPII('Contactez-moi sur john@example.com');
+// [{ type: 'email', value: 'john@example.com', start: 16, end: 32 }]
+
+// Anonymiser directement
+const clean = redactPII('Mon IBAN est FR76 3000 6000 0112 3456 7890 189');
+// 'Mon IBAN est [REDACTED:IBAN]'
+```

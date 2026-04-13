@@ -1,0 +1,81 @@
+---
+title: Content Policy
+description: Detect and block toxic, hateful, violent, and harmful content in both user inputs and AI outputs.
+---
+
+# Content Policy
+
+Detects and blocks harmful content categories using pattern matching and semantic analysis. Applies to both the user's prompt (input) and the AI's response (output).
+
+```typescript
+const guard = new Guardian({
+  content: {
+    enabled:     true,
+    sensitivity: 'medium',
+    categories: {
+      toxicity:    true,  // Offensive language, insults
+      hate:        true,  // Hate speech targeting protected groups
+      violence:    true,  // Threats, graphic violence
+      selfHarm:    true,  // Content encouraging self-harm
+      sexual:      false, // Explicit sexual content (disabled by default)
+    },
+  },
+});
+```
+
+## Configuration
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | Enable content policy |
+| `sensitivity` | `'low' \| 'medium' \| 'high'` | `'medium'` | Detection aggressiveness |
+| `onInput` | `boolean` | `true` | Check user prompts |
+| `onOutput` | `boolean` | `true` | Check AI responses |
+| `categories.toxicity` | `boolean` | `true` | Offensive / toxic language |
+| `categories.hate` | `boolean` | `true` | Hate speech |
+| `categories.violence` | `boolean` | `true` | Violent content / threats |
+| `categories.selfHarm` | `boolean` | `true` | Self-harm encouragement |
+| `categories.sexual` | `boolean` | `false` | Explicit sexual content |
+
+## Example
+
+```typescript
+try {
+  await guard.protect(callFn, '[harmful prompt]');
+} catch (err) {
+  if (err instanceof ContentPolicyError) {
+    console.log(err.code);              // 'CONTENT_POLICY_VIOLATION'
+    console.log(err.context.category);  // 'toxicity'
+    console.log(err.context.score);     // 0.91
+    console.log(err.context.direction); // 'input' | 'output'
+
+    // Return a safe response to the user
+    return Response.json({
+      error: 'Your message violates our content policy.'
+    }, { status: 400 });
+  }
+}
+```
+
+## Result Metadata
+
+```typescript
+const result = await guard.protect(callFn, safePrompt);
+console.log(result.meta.contentPolicy);
+// {
+//   passed: true,
+//   inputScore: { toxicity: 0.02, hate: 0.01, violence: 0.0, selfHarm: 0.0, sexual: 0.0 },
+//   outputScore: { toxicity: 0.01, hate: 0.0, violence: 0.0, selfHarm: 0.0, sexual: 0.0 }
+// }
+```
+
+## Standalone Usage
+
+```typescript
+import { analyzeContent } from '@edwinfom/ai-guard/content';
+
+const report = await analyzeContent('I hate all people from [group]', {
+  categories: { hate: true },
+});
+// { violations: [{ category: 'hate', score: 0.94, severity: 'high' }] }
+```

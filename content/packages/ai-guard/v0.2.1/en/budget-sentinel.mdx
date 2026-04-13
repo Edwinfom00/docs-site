@@ -1,0 +1,101 @@
+---
+title: Budget Sentinel
+description: Track token usage and costs in real-time with hard limits and warning callbacks.
+---
+
+# Budget Sentinel
+
+Prevents surprise billing by tracking token usage and costs in real-time, with configurable hard limits and warning callbacks.
+
+```typescript
+const guard = new Guardian({
+  budget: {
+    model:       'gpt-4o-mini',
+    maxTokens:   2000,
+    maxCostUSD:  0.05,
+    onWarning:   (usage) => console.warn(`Budget at ${Math.round(usage.totalTokens / 2000 * 100)}%`),
+    // Called when usage > 80% of limit
+  },
+});
+
+const result = await guard.protect(callFn, prompt);
+console.log(result.meta.budget);
+// { inputTokens: 312, outputTokens: 89, totalTokens: 401, estimatedCostUSD: 0.000060, model: 'gpt-4o-mini' }
+```
+
+## Supported Models & Pricing (per 1M tokens)
+
+| Model | Input | Output |
+|---|---|---|
+| `gpt-4o` | $2.50 | $10.00 |
+| `gpt-4o-mini` | $0.15 | $0.60 |
+| `gpt-4.1` *** | $2.00 | $8.00 |
+| `gpt-4.1-mini` *** | $0.40 | $1.60 |
+| `gpt-4-turbo` | $10.00 | $30.00 |
+| `gpt-3.5-turbo` | $0.50 | $1.50 |
+| `claude-3-7-sonnet-20250219` *** | $3.00 | $15.00 |
+| `claude-3-5-sonnet-20241022` | $3.00 | $15.00 |
+| `claude-3-5-haiku-20241022` | $0.80 | $4.00 |
+| `claude-3-opus-20240229` | $15.00 | $75.00 |
+| `gemini-2.5-pro` *** | $1.25 | $10.00 |
+| `gemini-2.5-flash` *** | $0.10 | $0.40 |
+| `gemini-2.0-flash` | $0.10 | $0.40 |
+| `gemini-1.5-pro` | $1.25 | $5.00 |
+| `gemini-1.5-flash` | $0.075 | $0.30 |
+| `mistral-large-2411` | $2.00 | $6.00 |
+| `llama-3.3-70b` | $0.59 | $0.79 |
+
+> *** = new in v0.2.1
+
+## Custom Model Pricing
+
+Register any model — fine-tuned, self-hosted, or not yet in the built-in list:
+
+```typescript
+import { registerModelPricing } from '@edwinfom/ai-guard';
+
+registerModelPricing('my-fine-tuned-gpt4', { input: 1.00, output: 2.00 });
+registerModelPricing('ollama/llama3', { input: 0.00, output: 0.00 });
+
+// Now use it anywhere
+const guard = new Guardian({
+  budget: { model: 'my-fine-tuned-gpt4', maxCostUSD: 0.10 },
+});
+```
+
+Custom pricing persists across CJS/ESM module boundaries via `globalThis` — register once at app startup.
+
+## Standalone Usage
+
+```typescript
+import { buildUsage, calculateCost, registerModelPricing } from '@edwinfom/ai-guard/budget';
+
+const usage = buildUsage('hello', 'world', 'gpt-4o-mini', 312, 89);
+// { inputTokens: 312, outputTokens: 89, totalTokens: 401, estimatedCostUSD: 0.000060 }
+
+const cost = calculateCost(1_000_000, 1_000_000, 'gpt-4o-mini');
+// 0.75
+
+// Register and use a custom model
+registerModelPricing('my-model', { input: 1.00, output: 2.00 });
+const customCost = calculateCost(1_000_000, 1_000_000, 'my-model');
+// 3.00
+```
+
+## Error Handling
+
+When a hard limit is exceeded, a `BudgetError` is thrown:
+
+```typescript
+import { BudgetError } from '@edwinfom/ai-guard';
+
+try {
+  await guard.protect(callFn, longPrompt);
+} catch (err) {
+  if (err instanceof BudgetError) {
+    console.log(err.code);    // 'BUDGET_EXCEEDED'
+    console.log(err.context); // { totalTokens: 2001, maxTokens: 2000, ... }
+    return Response.json({ error: 'Service temporarily limited.' }, { status: 429 });
+  }
+}
+```

@@ -8,6 +8,7 @@ export interface Package {
   version: string;
   versions: string[];
   latestVersion: string;
+  latestVersionDate?: string;
   npm: string;
   github: string;
   license: string;

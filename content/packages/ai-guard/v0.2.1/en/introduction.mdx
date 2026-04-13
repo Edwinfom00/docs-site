@@ -1,0 +1,88 @@
+---
+title: Introduction
+description: @edwinfom/ai-guard is a security middleware for AI API responses — one wrapper for PII redaction, schema enforcement, prompt injection detection, canary tokens, content policy, hallucination detection, budget sentinel, rate limiting, and audit logging.
+---
+
+# @edwinfom/ai-guard
+
+> A security middleware for AI API responses — PII redaction, schema enforcement, prompt injection detection, budget sentinel, and more.
+
+[![npm version](https://img.shields.io/npm/v/@edwinfom/ai-guard.svg)](https://www.npmjs.com/package/@edwinfom/ai-guard)
+[![license](https://img.shields.io/npm/l/@edwinfom/ai-guard.svg)](./LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
+
+## What's new in v0.2.1
+
+- `registerModelPricing()` — register any custom model at runtime
+- New built-in models: `gemini-2.5-flash`, `gemini-2.5-pro`, `gpt-4.1`, `gpt-4.1-mini`, `claude-3-7-sonnet-20250219`
+- New schema exports: `extractJSON()`, `repairJSON()`
+- New budget export: `estimateTokensByChars()`
+- New PII export: `getPatternsForTargets()`
+- Interactive [Playground](/docs/ai-guard/v0.2.1/en/playground) — run all standalone tests in your browser
+
+See the full [Changelog](/docs/ai-guard/v0.2.1/en/changelog) for details.
+
+## The Problem
+
+When integrating AI APIs (OpenAI, Anthropic, Gemini) into production applications, developers face recurring pain points with no standardized solution:
+
+- **Malformed JSON** — LLMs sometimes wrap responses in markdown fences or add explanatory text, crashing your pipeline.
+- **PII leakage** — Users send passwords or card numbers in prompts. AI responses can echo back sensitive data from your RAG database.
+- **Prompt injection** — Malicious users try to override your system prompt with "Ignore all previous instructions…"
+- **System prompt theft** — An attacker tricks the AI into repeating your confidential instructions.
+- **Toxic or harmful content** — No built-in content moderation between the LLM and your users.
+- **Hallucinations in RAG** — The AI invents facts not present in your source documents.
+- **Surprise billing** — Token usage spikes without any warning or hard limit.
+- **Abuse** — A single user floods your endpoint with requests.
+
+`@edwinfom/ai-guard` acts as a **security membrane** between your application and any AI provider. One wrapper, all protections.
+
+```typescript
+import { Guardian } from '@edwinfom/ai-guard';
+import { z } from 'zod';
+
+const guard = new Guardian({
+  pii:          { onInput: true, onOutput: true },
+  schema:       { validator: z.object({ city: z.string(), temp: z.number() }), repair: 'retry' },
+  injection:    { enabled: true, sensitivity: 'medium' },
+  content:      { enabled: true, sensitivity: 'medium' },
+  canary:       { enabled: true },
+  hallucination:{ sources: [ragDocument1, ragDocument2] },
+  budget:       { maxTokens: 2000, maxCostUSD: 0.05, model: 'gpt-4o-mini' },
+  rateLimit:    { maxRequests: 10, windowMs: 60_000, keyFn: (p) => getUserId(p) },
+  onAudit:      (entry) => logger.info(entry),
+});
+
+const result = await guard.protect(
+  (safePrompt) => openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: safePrompt }] }),
+  userPrompt
+);
+
+console.log(result.data);              // typed by your Zod schema
+console.log(result.meta.budget);       // { totalTokens: 312, estimatedCostUSD: 0.000047 }
+console.log(result.meta.piiRedacted);  // [{ type: 'email', value: 'user@...', ... }]
+console.log(result.meta.canaryLeaked); // false — system prompt was not leaked
+```
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **PII Redaction** | Emails, phones, credit cards (Luhn-validated), SSNs, IBANs, IPs, URLs + **French NIR, SIRET, SIREN, passports, dates of birth** |
+| **3-Level Schema Repair** | Strip markdown → `jsonrepair` (100+ broken patterns) → LLM retry |
+| **Injection Detection** | 15+ curated attack patterns with configurable sensitivity |
+| **Canary Tokens** | Invisible tokens detect if the LLM leaked your system prompt |
+| **Content Policy** | Toxicity, hate speech, violence, self-harm, sexual content |
+| **Hallucination Detection** | Named-entity grounding check against your RAG source documents |
+| **Budget Sentinel** | Token counting + real cost for 10 models, hard limits + warnings |
+| **Rate Limiter** | Per-user sliding-window request and token limits |
+| **Audit Log** | Structured callback after every `protect()` call |
+| **Streaming Support** | `protectStream()` — works with Vercel AI SDK, OpenAI streams, AsyncIterable |
+| **Dry-run Inspect** | `inspect()` — full risk report without blocking |
+| **Provider Agnostic** | OpenAI, Anthropic, Gemini, or any custom adapter |
+| **Tree-Shakeable** | Import only what you need via sub-paths |
+| **Zero mandatory deps** | Zod is optional. `jsonrepair` is the only runtime dependency. |
+
+## What makes `@edwinfom/ai-guard` different?
+
+Most teams bolt security on after the fact — rate limiting in nginx, PII scrubbing in a post-processing step, schema validation inline. `@edwinfom/ai-guard` is the **first JavaScript library** that puts all AI-specific security concerns in one composable, typed wrapper.

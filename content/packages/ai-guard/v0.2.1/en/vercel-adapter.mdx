@@ -1,0 +1,125 @@
+---
+title: Vercel AI SDK
+description: Use @edwinfom/ai-guard with the Vercel AI SDK for streaming responses in Next.js.
+---
+
+# Vercel AI SDK Integration
+
+Guard ships with a first-class adapter for the **Vercel AI SDK** (`ai` package). Wrap any Vercel AI stream with Guard protections in one line.
+
+## Installation
+
+```bash
+npm install ai @ai-sdk/openai @edwinfom/ai-guard
+```
+
+## Streaming Route Handler
+
+```typescript
+// app/api/chat/route.ts
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { Guardian } from '@edwinfom/ai-guard';
+import { z } from 'zod';
+
+const guard = new Guardian({
+  pii:       { targets: ['email', 'phone', 'creditCard'], onOutput: true },
+  injection: { enabled: true, sensitivity: 'medium' },
+  budget:    { model: 'gpt-4o-mini', maxCostUSD: 0.10 },
+  rateLimit: { maxRequests: 20, windowMs: 60_000, keyFn: (p) => getIP(p) },
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const userMessage = messages[messages.length - 1].content;
+
+  try {
+    const stream = await guard.protectStream(
+      (safePrompt) => streamText({
+        model:    openai('gpt-4o-mini'),
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant.' },
+          { role: 'user',   content: safePrompt },
+        ],
+      }),
+      userMessage,
+    );
+
+    return stream.toDataStreamResponse();
+  } catch (err) {
+    return Response.json({ error: err.message }, { status: 400 });
+  }
+}
+```
+
+## Non-Streaming (generateText)
+
+```typescript
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const result = await guard.protect(
+  (safePrompt) => generateText({
+    model:    openai('gpt-4o-mini'),
+    prompt:   safePrompt,
+  }),
+  userPrompt,
+);
+
+// result.data is the generated text
+// result.meta has full guard metadata
+console.log(result.data);    // Guarded response text
+console.log(result.meta);    // PII, budget, injection info
+```
+
+## With Structured Output
+
+```typescript
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+const RecipeSchema = z.object({
+  name:        z.string(),
+  ingredients: z.array(z.string()),
+  steps:       z.array(z.string()),
+});
+
+const result = await guard.protect(
+  (safePrompt) => generateObject({
+    model:  openai('gpt-4o-mini'),
+    schema: RecipeSchema,
+    prompt: safePrompt,
+  }),
+  'Give me a recipe for chocolate cake',
+);
+
+console.log(result.data.name);         // 'Chocolate Cake'
+console.log(result.data.ingredients);  // ['flour', 'cocoa', ...]
+```
+
+## Frontend (useChat)
+
+```typescript
+// components/Chat.tsx
+'use client';
+import { useChat } from 'ai/react';
+
+export default function Chat() {
+  const { messages, input, handleInputChange, handleSubmit } = useChat({
+    api: '/api/chat',
+  });
+
+  return (
+    <div>
+      {messages.map((m) => (
+        <div key={m.id}>{m.content}</div>
+      ))}
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={handleInputChange} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  );
+}
+```
