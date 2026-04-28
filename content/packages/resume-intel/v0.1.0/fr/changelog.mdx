@@ -1,0 +1,20 @@
+---
+title: Changelog
+description: Historique des versions de @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.1.0] — 27 avril 2026
+
+### Ajouté
+
+- Version initiale.
+- Extraction spatiale PDF avec reconstruction de l'ordre de lecture multicolonne (algorithme de boîtes englobantes).
+- Fallback OCR automatique pour les PDFs scannés via Tesseract.js + `@napi-rs/canvas`.
+- Adaptateur LLM agnostique au modèle construit sur le Vercel AI SDK (`generateObject`).
+- Schéma de sortie JSON Resume v1 avec validation Zod complète.
+- Intégration `jsonrepair` pour la réparation automatique de syntaxe JSON.
+- Décomposition parallèle par section — 6 extractions concurrentes au niveau section.
+- Boucle de retry auto-correctrice — erreurs Zod renvoyées au LLM pour correction.
+- Support pour DeepSeek, OpenAI, Anthropic, Gemini, Ollama, et tout fournisseur Vercel AI SDK.

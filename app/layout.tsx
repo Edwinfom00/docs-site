@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     default: "Edwin Packages — Documentation",
     template: "%s | Edwin Packages",
   },
-  description: "Official documentation for open-source packages by Edwin Fom — @edwinfom/ai-guard and more.",
-  keywords: ["documentation", "ai-guard", "pii", "llm", "security", "middleware", "typescript"],
+  description: "Official documentation for open-source packages by Edwin Fom — @edwinfom/ai-guard, @edwinfom/resume-intel and more.",
+  keywords: ["documentation", "ai-guard", "resume-intel", "pii", "llm", "security", "middleware", "typescript", "pdf", "resume", "parser"],
   authors: [{ name: "Edwin Fom" }],
   creator: "Edwin Fom",
   openGraph: {

@@ -1,0 +1,17 @@
+{
+  "name": "@edwinfom/resume-intel",
+  "slug": "resume-intel",
+  "description": "LLM-first resume parsing infrastructure. Model-agnostic, spatial extraction, OCR fallback, JSON Resume compatible.",
+  "version": "0.1.1-beta.1",
+  "versions": ["0.1.1-beta.1", "0.1.0"],
+  "latestVersion": "0.1.1-beta.1",
+  "latestVersionDate": "2026-04-28",
+  "newUntil": "2026-05-05",
+  "npm": "https://www.npmjs.com/package/@edwinfom/resume-intel",
+  "github": "https://github.com/Edwinfom00/resume-intel",
+  "license": "MIT",
+  "author": "Edwin Fom",
+  "color": "#8b5cf6",
+  "icon": "document",
+  "tags": ["pdf", "resume", "llm", "ai", "ocr", "parser"]
+}

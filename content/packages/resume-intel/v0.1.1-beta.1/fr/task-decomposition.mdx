@@ -1,0 +1,101 @@
+---
+title: Décomposition par section
+description: Comment resume-intel divise l'extraction en appels LLM parallèles par section pour réduire les hallucinations et améliorer la fiabilité.
+---
+
+# Décomposition par section
+
+## Le problème de l'extraction en un seul appel
+
+Demander à un seul appel LLM de remplir l'intégralité du schéma JSON Resume pose plusieurs problèmes :
+
+- **Charge cognitive élevée** — le modèle doit simultanément extraire les coordonnées, l'historique professionnel, la formation, les compétences, les langues et les projets depuis un long document
+- **Écho de schéma** — les petits modèles génèrent une structure syntaxiquement parfaite mais vide
+- **Pollution inter-sections** — les projets se retrouvent dans l'expérience professionnelle, les langues dans les compétences
+- **Gaspillage de tokens** — le texte complet du CV est envoyé une fois, mais la plupart est non pertinent pour chaque section
+
+## Comment fonctionne la décomposition
+
+`resume-intel` exécute des extractions parallèles et ciblées par section :
+
+```
+Texte du CV
+    ↓
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│  basics  │   work   │education │  skills  │languages │ projects │
+│  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │
+│  schéma  │  schéma  │  schéma  │  schéma  │  schéma  │  schéma  │
+│maxTokens │maxTokens │maxTokens │maxTokens │maxTokens │maxTokens │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+    ↓           ↓           ↓           ↓           ↓           ↓
+  résultat   résultat   résultat   résultat   résultat   résultat
+    ↓
+  fusion → déduplication → validation → retour
+```
+
+Chaque section s'exécute en parallèle. Un échec dans une section ne bloque pas les autres.
+
+## Limites de tokens par section
+
+Chaque section a une limite `maxTokens` calibrée pour éviter la continuation infinie :
+
+| Section | Max tokens | Justification |
+|---|---|---|
+| `basics` | 400 | Nom, email, téléphone, localisation, résumé |
+| `work` | 900 | 3–5 postes avec points clés |
+| `education` | 450 | 2–4 entrées |
+| `skills` | 300 | Mots-clés groupés |
+| `languages` | 150 | 2–4 entrées — produisait des artefacts `"\|"` |
+| `projects` | 550 | 2–5 entrées avec URLs |
+
+## Retry par section
+
+Si une section échoue la validation Zod, elle réessaie indépendamment avec l'erreur spécifique renvoyée au LLM :
+
+```
+Tentative d'extraction section 1
+    ↓ échec validation
+"Le champ 'work.0.startDate' doit être une chaîne au format YYYY-MM"
+    ↓
+Tentative d'extraction section 2 (avec prompt de correction)
+    ↓ succès
+Résultat fusionné
+```
+
+Un mauvais résultat pour `languages` ne cause pas le retry de `work` — seul `languages` réessaie.
+
+## Observabilité
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+for (const section of result.meta.sectionResults ?? []) {
+  console.log(`${section.section}: ${section.success ? '✅' : '❌'}`)
+  if (section.retryCount > 0) {
+    console.log(`  → ${section.retryCount} retry(s) nécessaire(s)`)
+  }
+  if (section.error) {
+    console.log(`  → Erreur: ${section.error}`)
+  }
+}
+```
+
+## Désactiver la décomposition
+
+Pour les CVs simples à une colonne, l'extraction en un seul appel est plus rapide :
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // un seul appel LLM
+})
+```
+
+## Configurer les retries
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 2, // limite de retry par section (défaut: 3)
+})
+```

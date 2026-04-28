@@ -1,0 +1,38 @@
+---
+title: Anthropic
+description: Using @edwinfom/resume-intel with Claude 3.5 Haiku and Claude 3.5 Sonnet.
+---
+
+# Anthropic
+
+## Setup
+
+```bash
+npm install @ai-sdk/anthropic
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createAnthropic } from '@ai-sdk/anthropic'
+
+const model = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+})('claude-3-5-haiku-20241022')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Recommended models
+
+| Model | Speed | Cost | Best for |
+|---|---|---|---|
+| `claude-3-5-haiku-20241022` | Fast | Low | Most CVs |
+| `claude-3-5-sonnet-20241022` | Medium | Higher | Complex, non-standard formats |
+
+Claude 3.5 Haiku is particularly strong on CVs with unusual formatting or non-standard section names. It follows instructions precisely and rarely hallucinates field values.
+
+## Note on PDF vision
+
+Claude 3.5 Sonnet and Haiku support native PDF vision (submitting PDFs directly to the API). However, `resume-intel` does **not** use this feature — it always extracts text first and sends clean text to the model.
+
+This is intentional: the spatial reconstruction step (which fixes multi-column layouts) requires text-level processing. Submitting the raw PDF to Claude's vision API would bypass this critical step and produce worse results on complex CV layouts.

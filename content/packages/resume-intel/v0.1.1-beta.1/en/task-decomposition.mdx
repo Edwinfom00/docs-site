@@ -1,0 +1,113 @@
+---
+title: Task Decomposition
+description: How resume-intel splits extraction into parallel per-section LLM calls to reduce hallucinations and improve reliability.
+---
+
+# Task Decomposition
+
+## The problem with single-shot extraction
+
+Asking a single LLM call to populate the entire JSON Resume schema in one shot has several problems:
+
+- **High cognitive load** — the model must simultaneously extract contact info, work history, education, skills, languages, and projects from a long document
+- **Schema echo** — small models generate a syntactically perfect but empty structure
+- **Cross-section pollution** — projects end up in work experience, languages end up in skills
+- **Token waste** — the full CV text is sent once, but most of it is irrelevant to each section
+
+## How task decomposition works
+
+`resume-intel` runs parallel focused extractions per section:
+
+```
+Resume text
+    ↓
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│  basics  │   work   │education │  skills  │languages │ projects │
+│  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │
+│  schema  │  schema  │  schema  │  schema  │  schema  │  schema  │
+│maxTokens │maxTokens │maxTokens │maxTokens │maxTokens │maxTokens │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+    ↓           ↓           ↓           ↓           ↓           ↓
+  result      result      result      result      result      result
+    ↓
+  merge → deduplicate → validate → return
+```
+
+Each section runs concurrently. A failure in one section does not block the others.
+
+## Per-section token limits
+
+Each section has a calibrated `maxTokens` cap to prevent infinite continuation:
+
+| Section | Max tokens | Rationale |
+|---|---|---|
+| `basics` | 400 | Name, email, phone, location, summary |
+| `work` | 900 | 3–5 positions with highlights |
+| `education` | 450 | 2–4 entries |
+| `skills` | 300 | Grouped keywords |
+| `languages` | 150 | 2–4 entries — was producing `"\|"` artefacts |
+| `projects` | 550 | 2–5 entries with URLs |
+
+## Per-section retry
+
+If a section fails Zod validation, it retries independently with the specific error fed back to the LLM:
+
+```
+Section extraction attempt 1
+    ↓ fails validation
+"Field 'work.0.startDate' must be a string in YYYY-MM format"
+    ↓
+Section extraction attempt 2 (with correction prompt)
+    ↓ passes
+Result merged
+```
+
+This means a bad `languages` extraction doesn't cause `work` to retry — only `languages` retries.
+
+## Observability
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+for (const section of result.meta.sectionResults ?? []) {
+  console.log(`${section.section}: ${section.success ? '✅' : '❌'}`)
+  if (section.retryCount > 0) {
+    console.log(`  → ${section.retryCount} retries needed`)
+  }
+  if (section.error) {
+    console.log(`  → Error: ${section.error}`)
+  }
+}
+```
+
+Example output:
+```
+basics:    ✅
+work:      ✅
+education: ✅
+skills:    ✅
+languages: ✅ (1 retry needed)
+projects:  ✅
+```
+
+## Disabling task decomposition
+
+For simple single-column CVs, single-shot extraction is faster:
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // single LLM call
+})
+```
+
+Single-shot mode still uses `temperature: 0` and the JSON repair pipeline, but skips the parallel section extraction.
+
+## Configuring retries
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 2, // per-section retry limit (default: 3)
+})
+```

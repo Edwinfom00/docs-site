@@ -1,0 +1,79 @@
+---
+title: Fallback OCR
+description: Traitement OCR automatique pour les PDFs scannés via Tesseract.js et @napi-rs/canvas — entièrement local, aucun service externe.
+---
+
+# Fallback OCR
+
+## Qu'est-ce qu'un PDF scanné ?
+
+Un PDF scanné est un PDF qui contient des images de pages plutôt que du texte embarqué. Il est créé en scannant un document physique et en le sauvegardant en PDF. Contrairement aux PDFs natifs (créés par Word, LaTeX ou une imprimante PDF), les PDFs scannés n'ont pas de couche texte — ce sont juste des images.
+
+Quand `pdfjs-dist` extrait le texte d'un PDF scanné, il retourne une chaîne vide. Sans OCR, le LLM ne reçoit rien à traiter.
+
+## Détection automatique
+
+`resume-intel` détecte automatiquement les PDFs scannés en mesurant la densité de texte :
+
+- Si le texte extrait moyen est **< 50 caractères par page** → classifié comme scanné (95% de confiance)
+- Si la moyenne est **< 150 caractères par page** → classifié comme probablement scanné (70% de confiance)
+- Sinon → classifié comme natif
+
+Quand un PDF scanné est détecté, le pipeline OCR se déclenche automatiquement. Aucune configuration nécessaire.
+
+## Le pipeline OCR
+
+```
+Buffer PDF
+    ↓
+pdfjs-dist rastérise chaque page en PNG
+    ↓
+@napi-rs/canvas fournit le contexte canvas
+    ↓
+Tesseract.js (WASM) exécute l'OCR sur chaque PNG
+    ↓
+Nettoyeur de texte OCR supprime les artefacts
+    ↓
+Texte propre → extraction LLM
+```
+
+### Étape 1 — Rastérisation
+
+Chaque page PDF est rendue en image PNG à 150 DPI via `pdfjs-dist` avec `@napi-rs/canvas` comme backend de rendu. 150 DPI offre un bon équilibre entre précision OCR et vitesse de traitement.
+
+### Étape 2 — OCR
+
+Tesseract.js s'exécute localement en mode WASM. Un seul worker est créé et réutilisé sur toutes les pages pour éviter de réinitialiser le moteur WASM pour chaque page.
+
+### Étape 3 — Nettoyage du texte
+
+La sortie OCR contient des artefacts que les LLMs interprètent littéralement. Le nettoyeur supprime :
+
+- Les caractères de remplissage des jauges de compétences (`████░░░`, `■■■□□`)
+- Les lignes séparatrices de barres/tirets (`| | | |`, `----------`)
+- Les caractères spéciaux isolés (`|`, `•`, `·`)
+- Les numéros de page (`Page 1 sur 3`, `- 2 -`)
+- Les lignes d'en-tête/pied de page répétées (même ligne apparaissant 2+ fois)
+
+Cela élimine les valeurs de champs corrompues comme `"fluency": "|"` qui étaient courantes en v0.1.0.
+
+## Vérifier si l'OCR a été utilisé
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+if (result.meta.ocrFallback) {
+  console.log('PDF scanné détecté — OCR utilisé')
+}
+```
+
+## Performance
+
+L'OCR est significativement plus lent que l'extraction de texte :
+
+| Méthode | Temps typique (CV 3 pages) |
+|---|---|
+| Extraction native | 200–500ms |
+| Fallback OCR | 8–20 secondes |
+
+Le temps supplémentaire vient de l'initialisation de Tesseract.js et du traitement d'image par page. C'est un coût unique par document.

@@ -1,0 +1,44 @@
+---
+title: Changelog
+description: Historique des versions de @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.1.1-beta.1] — 28 avril 2026
+
+### Ajouté
+
+- **`maxTokens` par section** — chaque section a maintenant une limite stricte sur la longueur de complétion (ex: `languages: 150`, `work: 900`). Élimine le pattern de "continuation infinie après un JSON valide" observé avec DeepSeek et Ollama.
+
+- **`temperature: 0`** — tous les appels d'extraction utilisent maintenant une génération déterministe. L'extraction est une tâche de récupération, pas de création. Réduit la variabilité des sorties sur les fournisseurs qui respectent ce paramètre (OpenAI, Anthropic, DeepSeek).
+
+- **Nettoyage du texte OCR** — une étape de pré-traitement supprime les artefacts Tesseract avant que le texte n'atteigne le LLM. Élimine les valeurs de champs corrompues comme `"fluency": "|"` ou `"level": "████░░"` causées par les jauges de compétences visuelles et les bordures de tableaux dans les CVs scannés.
+
+- **Retry par section avec auto-correction** — chaque section réessaie maintenant indépendamment en cas d'échec (jusqu'à `maxRetries` fois) avec l'erreur de validation Zod renvoyée au modèle. Précédemment, une section échouée retournait `null` silencieusement sans tentative de récupération.
+
+- **Déduplication post-extraction** — les champs tableau (`work`, `education`, `skills`, `languages`, `projects`, `awards`, `certificates`) sont dédupliqués par clé composite après l'extraction. Prévient les entrées dupliquées causées par les patterns répétés dans le texte OCR.
+
+- **`sectionResults` dans `meta`** — le mode décomposition par section expose maintenant l'observabilité par section : quelles sections ont réussi, combien de retries ont été nécessaires, et le message d'erreur pour toute section ayant échoué après tous les retries.
+
+### Corrigé
+
+- `"fluency": "|"` — artefact OCR des jauges de compétences visuelles maintenant supprimé avant le LLM.
+- Entrées dupliquées dans les tableaux des CVs scannés multi-pages.
+- Échecs silencieux de sections sans information de diagnostic.
+
+---
+
+## [0.1.0] — 27 avril 2026
+
+### Ajouté
+
+- Version initiale.
+- Extraction spatiale PDF avec reconstruction de l'ordre de lecture multicolonne (algorithme de boîtes englobantes).
+- Fallback OCR automatique pour les PDFs scannés via Tesseract.js + `@napi-rs/canvas`.
+- Adaptateur LLM agnostique au modèle construit sur le Vercel AI SDK (`generateObject`).
+- Schéma de sortie JSON Resume v1 avec validation Zod complète.
+- Intégration `jsonrepair` pour la réparation automatique de syntaxe JSON.
+- Décomposition parallèle par section — 6 extractions concurrentes au niveau section.
+- Boucle de retry auto-correctrice — erreurs Zod renvoyées au LLM pour correction.
+- Support pour DeepSeek, OpenAI, Anthropic, Gemini, Ollama, et tout fournisseur Vercel AI SDK.

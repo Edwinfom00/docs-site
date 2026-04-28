@@ -1,0 +1,55 @@
+---
+title: Task Decomposition
+description: How resume-intel splits extraction into parallel per-section LLM calls to reduce hallucinations and improve reliability.
+---
+
+# Task Decomposition
+
+## The problem with single-shot extraction
+
+Asking a single LLM call to populate the entire JSON Resume schema in one shot has several problems:
+
+- **High cognitive load** — the model must simultaneously extract contact info, work history, education, skills, languages, and projects from a long document
+- **Schema echo** — small models generate a syntactically perfect but empty structure
+- **Cross-section pollution** — projects end up in work experience, languages end up in skills
+- **Token waste** — the full CV text is sent once, but most of it is irrelevant to each section
+
+## How task decomposition works
+
+`resume-intel` runs parallel focused extractions per section:
+
+```
+Resume text
+    ↓
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│  basics  │   work   │education │  skills  │languages │ projects │
+│  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │
+│  schema  │  schema  │  schema  │  schema  │  schema  │  schema  │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+    ↓           ↓           ↓           ↓           ↓           ↓
+  result      result      result      result      result      result
+    ↓
+  merge → validate → return
+```
+
+Each section runs concurrently. A failure in one section does not block the others.
+
+## Disabling task decomposition
+
+For simple single-column CVs, single-shot extraction is faster:
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // single LLM call
+})
+```
+
+## Configuring retries
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 2, // global retry limit (default: 3)
+})
+```

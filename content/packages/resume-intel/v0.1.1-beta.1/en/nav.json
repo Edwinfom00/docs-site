@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Getting Started",
+    "items": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Installation", "slug": "installation" },
+      { "title": "Quick Start", "slug": "quick-start" }
+    ]
+  },
+  {
+    "title": "Core Pipeline",
+    "items": [
+      { "title": "Spatial Extraction", "slug": "spatial-extraction" },
+      { "title": "OCR Fallback", "slug": "ocr-fallback" },
+      { "title": "Task Decomposition", "slug": "task-decomposition" },
+      { "title": "JSON Validation", "slug": "json-validation" }
+    ]
+  },
+  {
+    "title": "Model Providers",
+    "items": [
+      { "title": "DeepSeek", "slug": "provider-deepseek" },
+      { "title": "OpenAI", "slug": "provider-openai" },
+      { "title": "Anthropic", "slug": "provider-anthropic" },
+      { "title": "Ollama (Local)", "slug": "provider-ollama" }
+    ]
+  },
+  {
+    "title": "Reference",
+    "items": [
+      { "title": "API Reference", "slug": "api-reference" },
+      { "title": "Output Schema", "slug": "output-schema" },
+      { "title": "Error Handling", "slug": "error-handling" },
+      { "title": "Changelog", "slug": "changelog" }
+    ]
+  }
+]

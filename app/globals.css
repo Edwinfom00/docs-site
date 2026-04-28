@@ -662,6 +662,26 @@ body {
   opacity: 0.6;
 }
 
+/* NEW badge — shown for 7 days after a package is published */
+.badge-new {
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: var(--font-geist-mono), monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  padding: 0.15rem 0.45rem;
+  border-radius: 100px;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  animation: badge-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(139, 92, 246, 0.4); }
+  50%       { box-shadow: 0 0 14px rgba(139, 92, 246, 0.75); }
+}
+
 .card-name {
   font-size: 0.9rem;
   font-weight: 600;

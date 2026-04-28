@@ -1,0 +1,44 @@
+---
+title: Changelog
+description: Version history for @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.1.1-beta.1] — 2026-04-28
+
+### Added
+
+- **Per-section `maxTokens`** — each section now has a hard cap on completion length (e.g., `languages: 150`, `work: 900`). Eliminates the "infinite continuation after valid JSON" corruption pattern observed with DeepSeek and Ollama.
+
+- **`temperature: 0`** — all extraction calls now use deterministic generation. Extraction is a retrieval task, not a creative one. Reduces output variability across runs on providers that respect this parameter (OpenAI, Anthropic, DeepSeek).
+
+- **OCR text cleaning** — a pre-processing step strips Tesseract artefacts before the text reaches the LLM. Eliminates corrupted field values like `"fluency": "|"` or `"level": "████░░"` caused by visual progress bars and table borders in scanned CVs.
+
+- **Per-section retry with self-correction** — each section now retries independently on failure (up to `maxRetries` times) with the Zod validation error fed back to the model. Previously, a failed section returned `null` silently with no recovery attempt.
+
+- **Post-extraction deduplication** — array fields (`work`, `education`, `skills`, `languages`, `projects`, `awards`, `certificates`) are deduplicated by composite key after extraction. Prevents duplicate entries caused by repeated patterns in OCR text.
+
+- **`sectionResults` in `meta`** — task decomposition mode now exposes per-section observability: which sections succeeded, how many retries were needed, and the error message for any section that failed after all retries.
+
+### Fixed
+
+- `"fluency": "|"` — OCR artefact from visual skill meters now stripped before LLM.
+- Duplicate array entries from multi-page scanned CVs.
+- Silent section failures with no diagnostic information.
+
+---
+
+## [0.1.0] — 2026-04-27
+
+### Added
+
+- Initial release.
+- Spatial PDF extraction with multi-column layout reconstruction (bounding box algorithm).
+- Automatic OCR fallback for scanned PDFs using Tesseract.js + `@napi-rs/canvas`.
+- Model-agnostic LLM adapter built on the Vercel AI SDK (`generateObject`).
+- JSON Resume v1 output schema with full Zod validation.
+- `jsonrepair` integration for automatic JSON syntax repair.
+- Parallel task decomposition — 6 concurrent section-level extractions.
+- Self-correcting retry loop — Zod errors fed back to the LLM for correction.
+- Support for DeepSeek, OpenAI, Anthropic, Gemini, Ollama, and any Vercel AI SDK provider.

@@ -1,0 +1,46 @@
+---
+title: OpenAI
+description: Using @edwinfom/resume-intel with OpenAI GPT-4o-mini and GPT-4o.
+---
+
+# OpenAI
+
+## Setup
+
+```bash
+npm install @ai-sdk/openai
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const model = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})('gpt-4o-mini')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Recommended models
+
+| Model | Speed | Cost | Best for |
+|---|---|---|---|
+| `gpt-4o-mini` | Fast | Low | Most CVs — good balance |
+| `gpt-4o` | Medium | Higher | Complex or non-standard formats |
+| `gpt-4.1-mini` | Fast | Low | Latest generation, similar to 4o-mini |
+
+`gpt-4o-mini` is the recommended OpenAI model for resume extraction. It respects `temperature: 0` reliably and produces consistent structured output.
+
+## JSON mode
+
+OpenAI supports native JSON mode which `resume-intel` uses automatically via `generateObject`. This means OpenAI will always return valid JSON — the repair stage is rarely needed.
+
+## Example with custom system prompt
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model: createOpenAI({ apiKey: process.env.OPENAI_API_KEY })('gpt-4o-mini'),
+  systemPromptPrefix: 'This resume is from a software engineer. Pay special attention to technical skills and project URLs.',
+})
+```

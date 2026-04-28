@@ -1,0 +1,89 @@
+---
+title: Introduction
+description: @edwinfom/resume-intel is a LLM-first resume parsing infrastructure — model-agnostic, spatial PDF extraction, automatic OCR fallback, JSON Resume v1 output, and production-grade JSON validation.
+---
+
+# @edwinfom/resume-intel
+
+> LLM-first resume parsing infrastructure.
+> Model-agnostic · Spatial extraction · OCR fallback · JSON Resume compatible
+
+[![npm version](https://img.shields.io/npm/v/@edwinfom/resume-intel.svg)](https://www.npmjs.com/package/@edwinfom/resume-intel)
+[![license](https://img.shields.io/npm/l/@edwinfom/resume-intel.svg)](./LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+
+## The Problem
+
+Extracting structured data from resume PDFs is harder than it looks. Most tools either use brittle regex patterns that break on modern CV designs, or they wrap a single AI provider's API and lock you in forever.
+
+Here's what actually goes wrong in practice:
+
+- **Multi-column layouts** — column 1 and column 2 get interleaved. Dates mix with job descriptions. The LLM receives semantic chaos and hallucinates.
+- **DeepSeek and similar models can't read raw PDFs** — they are text-only models. You must extract and clean the text first, or every call fails silently.
+- **LLMs produce broken JSON** — missing closing braces, trailing commas, JSON wrapped in markdown fences. Without a repair layer, your pipeline crashes.
+- **Vendor lock-in** — if your parser only works with Claude or GPT-4, you can't switch to a cheaper or local model without rewriting your integration.
+- **Scanned PDFs** — no text layer at all. A basic extractor returns an empty string and you never know why.
+
+`resume-intel` is a four-layer pipeline that solves all of this:
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+const result = await parseResume(readFileSync('./resume.pdf'), {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})
+
+console.log(result.data.basics?.name)  // "Jane Doe"
+console.log(result.data.work?.length)  // 3
+console.log(result.meta.ocrFallback)   // true if scanned PDF
+```
+
+## How it works
+
+### 1 — Scan Detection
+
+Before any extraction, the package checks whether the PDF has an embedded text layer. If text density is below a threshold, the PDF is classified as scanned and the OCR pipeline triggers automatically.
+
+### 2a — Spatial PDF Extraction (text-native PDFs)
+
+Standard extractors read text in rendering order, not reading order. For a two-column CV this produces:
+
+```
+2020 Senior Engineer TypeScript Node.js
+2018 Junior Engineer React PostgreSQL
+```
+
+`resume-intel` extracts bounding box coordinates, detects column boundaries using gap analysis, sorts blocks within each column by vertical position, and concatenates columns left-to-right. The LLM receives clean, ordered text.
+
+### 2b — OCR Fallback (scanned PDFs)
+
+When a scanned PDF is detected:
+1. Rasterizes each page to PNG using `pdfjs-dist` + `@napi-rs/canvas` at 150 DPI
+2. Runs Tesseract.js (WASM) locally on each page image
+
+No external OCR service. No network call. Everything runs locally.
+
+### 3 — Task Decomposition
+
+Instead of one monolithic LLM call, `resume-intel` runs parallel focused extractions per section — each with its own prompt and schema. This reduces hallucinations and isolates failures.
+
+### 4 — JSON Repair and Validation
+
+1. **Repair** — strips markdown fences, fixes trailing commas, missing brackets via `jsonrepair`
+2. **Validate** — Zod schema enforcement
+3. **Self-correct** — Zod errors are fed back to the LLM for targeted correction (up to `maxRetries` times)
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Spatial Extraction** | Bounding box algorithm reconstructs multi-column reading order |
+| **OCR Fallback** | Tesseract.js + `@napi-rs/canvas` for scanned PDFs, fully local |
+| **Model Agnostic** | Vercel AI SDK — works with DeepSeek, OpenAI, Anthropic, Gemini, Ollama |
+| **JSON Resume v1** | Output conforms to the open standard used by hundreds of tools |
+| **Zod Validation** | Full schema enforcement with self-correcting retry loop |
+| **JSON Repair** | `jsonrepair` handles markdown fences, trailing commas, truncated responses |
+| **Task Decomposition** | Parallel per-section extraction |
+| **TypeScript First** | Full type safety, ESM + CJS dual build |

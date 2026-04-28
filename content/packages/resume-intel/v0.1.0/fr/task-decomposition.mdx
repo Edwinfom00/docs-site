@@ -1,0 +1,55 @@
+---
+title: Décomposition par section
+description: Comment resume-intel divise l'extraction en appels LLM parallèles par section pour réduire les hallucinations et améliorer la fiabilité.
+---
+
+# Décomposition par section
+
+## Le problème de l'extraction en un seul appel
+
+Demander à un seul appel LLM de remplir l'intégralité du schéma JSON Resume pose plusieurs problèmes :
+
+- **Charge cognitive élevée** — le modèle doit simultanément extraire les coordonnées, l'historique professionnel, la formation, les compétences, les langues et les projets depuis un long document
+- **Écho de schéma** — les petits modèles génèrent une structure syntaxiquement parfaite mais vide
+- **Pollution inter-sections** — les projets se retrouvent dans l'expérience professionnelle, les langues dans les compétences
+- **Gaspillage de tokens** — le texte complet du CV est envoyé une fois, mais la plupart est non pertinent pour chaque section
+
+## Comment fonctionne la décomposition
+
+`resume-intel` exécute des extractions parallèles et ciblées par section :
+
+```
+Texte du CV
+    ↓
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│  basics  │   work   │education │  skills  │languages │ projects │
+│  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │  prompt  │
+│  schéma  │  schéma  │  schéma  │  schéma  │  schéma  │  schéma  │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+    ↓           ↓           ↓           ↓           ↓           ↓
+  résultat   résultat   résultat   résultat   résultat   résultat
+    ↓
+  fusion → validation → retour
+```
+
+Chaque section s'exécute en parallèle. Un échec dans une section ne bloque pas les autres.
+
+## Désactiver la décomposition
+
+Pour les CVs simples à une colonne, l'extraction en un seul appel est plus rapide :
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // un seul appel LLM
+})
+```
+
+## Configurer les retries
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 2, // limite de retry globale (défaut: 3)
+})
+```

@@ -1,0 +1,126 @@
+---
+title: API Reference
+description: Complete API reference for @edwinfom/resume-intel — parseResume, options, return types, and exported schemas.
+---
+
+# API Reference
+
+## `parseResume(input, options)`
+
+The main function. Accepts a PDF buffer and returns structured resume data.
+
+### Parameters
+
+**`input`** — `Buffer | ArrayBuffer | Uint8Array`
+
+The PDF file content. All three buffer types are accepted.
+
+**`options`** — `ResumeIntelOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `model` | `LanguageModel` | required | Any Vercel AI SDK compatible model |
+| `maxRetries` | `number` | `3` | Max self-correction attempts per section on validation failure |
+| `layoutStrategy` | `'spatial' \| 'linear'` | `'spatial'` | PDF text extraction strategy |
+| `useTaskDecomposition` | `boolean` | `true` | Run parallel per-section extractions |
+| `systemPromptPrefix` | `string` | `''` | Custom instructions injected before extraction prompts |
+| `abortSignal` | `AbortSignal` | — | Standard abort signal for cancellation |
+
+### Return value
+
+**`Promise<ResumeIntelResult>`**
+
+```typescript
+interface ResumeIntelResult {
+  data: JsonResume      // JSON Resume v1 compatible object
+  meta: ExtractionMeta
+}
+
+interface ExtractionMeta {
+  durationMs: number              // total processing time in ms
+  retryCount: number              // number of global retry attempts
+  ocrFallback: boolean            // true if Tesseract OCR was used
+  layoutStrategy: 'spatial' | 'linear'
+  pageCount: number               // number of PDF pages
+  tokenUsage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+}
+```
+
+## `JsonResumeSchema`
+
+The Zod schema for the JSON Resume v1 specification. Use it to validate your own data.
+
+```typescript
+import { JsonResumeSchema } from '@edwinfom/resume-intel'
+
+const result = JsonResumeSchema.safeParse(myData)
+```
+
+## `SectionSchemas`
+
+Individual Zod schemas for each JSON Resume section.
+
+```typescript
+import { SectionSchemas } from '@edwinfom/resume-intel'
+
+const workResult = SectionSchemas.work.safeParse(myWorkData)
+```
+
+Available keys: `basics`, `work`, `education`, `skills`, `languages`, `projects`, `awards`, `certificates`, `publications`, `volunteer`, `interests`, `references`
+
+## Error classes
+
+### `ResumeExtractionError`
+
+Thrown when the LLM fails to produce valid data after all retry attempts.
+
+```typescript
+import { ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error(error.message)  // "Failed to extract valid resume data after 4 attempts..."
+    console.error(error.cause)    // the underlying Zod or API error
+  }
+}
+```
+
+### `OcrNotEnabledError`
+
+Thrown when a scanned PDF is detected but OCR processing fails (e.g., `tesseract.js` issue).
+
+```typescript
+import { OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR failed:', error.message)
+  }
+}
+```
+
+## TypeScript types
+
+All types are exported from the main entry point:
+
+```typescript
+import type {
+  ResumeIntelOptions,
+  ResumeIntelResult,
+  ExtractionMeta,
+  TokenUsage,
+  JsonResume,
+  ResumeSectionKey,
+  TextBlock,
+  SpatialDocument,
+  SpatialPage,
+} from '@edwinfom/resume-intel'
+```

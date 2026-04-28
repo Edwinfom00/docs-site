@@ -1,0 +1,38 @@
+---
+title: Anthropic
+description: Utiliser @edwinfom/resume-intel avec Claude 3.5 Haiku et Claude 3.5 Sonnet.
+---
+
+# Anthropic
+
+## Configuration
+
+```bash
+npm install @ai-sdk/anthropic
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createAnthropic } from '@ai-sdk/anthropic'
+
+const model = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+})('claude-3-5-haiku-20241022')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Modèles recommandés
+
+| Modèle | Vitesse | Coût | Idéal pour |
+|---|---|---|---|
+| `claude-3-5-haiku-20241022` | Rapide | Faible | La plupart des CVs |
+| `claude-3-5-sonnet-20241022` | Moyen | Plus élevé | Formats complexes et non standard |
+
+Claude 3.5 Haiku est particulièrement performant sur les CVs avec une mise en page inhabituelle ou des noms de sections non standard. Il suit les instructions avec précision et hallucine rarement des valeurs de champs.
+
+## Note sur la vision PDF
+
+Claude 3.5 Sonnet et Haiku supportent la vision PDF native (soumission directe de PDFs à l'API). Cependant, `resume-intel` n'utilise **pas** cette fonctionnalité — il extrait toujours le texte en premier et envoie du texte propre au modèle.
+
+C'est intentionnel : l'étape de reconstruction spatiale (qui corrige les mises en page multicolonnes) nécessite un traitement au niveau du texte. Soumettre le PDF brut à la vision de Claude contournerait cette étape critique et produirait de moins bons résultats sur les CVs complexes.

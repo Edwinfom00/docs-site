@@ -1,0 +1,63 @@
+---
+title: Ollama (Local)
+description: Utiliser @edwinfom/resume-intel avec des modèles locaux via Ollama — aucune clé API, aucune donnée ne quitte votre machine.
+---
+
+# Ollama (Local)
+
+Ollama vous permet d'exécuter des LLMs localement sur votre machine. Aucune clé API, aucune donnée envoyée à des serveurs externes — idéal pour les cas d'usage sensibles à la confidentialité.
+
+## Prérequis
+
+1. Installer Ollama : [https://ollama.ai](https://ollama.ai)
+2. Télécharger un modèle : `ollama pull llama3.1`
+3. Démarrer le serveur : `ollama serve`
+
+## Configuration
+
+Ollama expose une API compatible OpenAI sur `http://localhost:11434/v1`. Utilisez `@ai-sdk/openai` avec un `baseURL` personnalisé :
+
+```bash
+npm install @ai-sdk/openai
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const model = createOpenAI({
+  baseURL: 'http://localhost:11434/v1',
+  apiKey: 'ollama', // requis par le SDK mais non validé par Ollama
+})('llama3.1')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Modèles recommandés
+
+| Modèle | Taille | Qualité | Notes |
+|---|---|---|---|
+| `llama3.1` | 8B | Bonne | Meilleur équilibre pour la plupart des machines |
+| `mistral` | 7B | Bonne | Rapide, bon suivi d'instructions |
+| `qwen2.5:7b` | 7B | Bonne | Performant sur la sortie structurée |
+
+## Conseils pour de meilleurs résultats avec les modèles locaux
+
+**Utiliser le mode single-shot** — la décomposition par section fait 6 appels parallèles qui peuvent surcharger les serveurs locaux :
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // un seul appel, plus rapide pour les modèles locaux
+  maxRetries: 2,
+})
+```
+
+**Augmenter les retries** — les petits modèles locaux produisent plus d'échecs de validation :
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 5,
+})
+```
