@@ -1,0 +1,57 @@
+---
+title: Changelog
+description: Version history for @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.1.2] — 2026-04-30
+
+### Added
+
+- **15 sections** — `awards`, `certificates`, `publications`, `volunteer`, `interests`, `references` are now fully extracted with dedicated prompts and schemas. The default set is 8 sections; all 12 are available via the `sections` option.
+
+- **`sections` option** — choose exactly which sections to extract. Pass an explicit array to extract only what you need, reducing token usage and latency.
+
+- **`outputSchema` option** — replace the default JSON Resume v1 schema with any custom Zod schema. Useful for applications that need a different output shape. Works best with `useTaskDecomposition: false`.
+
+- **`sectionsRequested` in meta** — the `ExtractionMeta` object now includes `sectionsRequested: string[]` so you always know which sections were requested for a given extraction.
+
+- **CLI** — `resume-intel parse <file.pdf>` command. Supports `--model`, `--sections`, `--layout`, `--output`, `--out`, `--no-decompose`, `--key`. All AI provider SDKs are optional peer dependencies.
+
+- **`ALL_SECTIONS` and `DEFAULT_SECTIONS` exports** — constants for building section lists programmatically.
+
+- **Improved prompts** — stronger date normalization (no `-01` padding on year-only dates), URL completeness check (truncated URLs are omitted), explicit deduplication instructions per section.
+
+### Fixed
+
+- **Serverless worker** — `pdf.worker.mjs` is now loaded via `import()` + `MessageChannel` instead of a file-path URL. This fixes the `Cannot find module '/var/task/node_modules/.../pdf.worker.mjs'` error on Vercel, AWS Lambda, and other serverless environments where bundlers exclude the worker file.
+
+---
+
+## [0.1.1-beta.1] — 2026-04-28
+
+### Added
+
+- Per-section `maxTokens` — eliminates infinite continuation after valid JSON.
+- `temperature: 0` — deterministic extraction across all providers.
+- OCR text cleaning — strips Tesseract artefacts (`"fluency": "|"` eliminated).
+- Per-section retry with self-correction — each section retries independently.
+- Post-extraction deduplication — removes duplicate array entries.
+- `sectionResults` in meta — per-section observability.
+
+---
+
+## [0.1.0] — 2026-04-27
+
+### Added
+
+- Initial release.
+- Spatial PDF extraction with multi-column layout reconstruction.
+- Automatic OCR fallback for scanned PDFs using Tesseract.js + `@napi-rs/canvas`.
+- Model-agnostic LLM adapter built on the Vercel AI SDK.
+- JSON Resume v1 output schema with full Zod validation.
+- `jsonrepair` integration for automatic JSON syntax repair.
+- Parallel task decomposition — 6 concurrent section-level extractions.
+- Self-correcting retry loop — Zod errors fed back to the LLM.
+- Support for DeepSeek, OpenAI, Anthropic, Gemini, Ollama, and any Vercel AI SDK provider.

@@ -1,0 +1,119 @@
+---
+title: Error Handling
+description: All errors thrown by @edwinfom/resume-intel and how to handle them.
+---
+
+# Error Handling
+
+## Error classes
+
+### `ResumeExtractionError`
+
+Thrown when the LLM fails to produce valid structured data after all retry attempts.
+
+**When it occurs:**
+- The LLM consistently produces invalid JSON that cannot be repaired
+- The LLM produces valid JSON that fails Zod validation on every attempt
+- The AI provider API returns an error (rate limit, network failure, etc.)
+
+```typescript
+import { parseResume, ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error('Extraction failed:', error.message)
+    // "Failed to extract valid resume data after 4 attempts. Last error: ..."
+    
+    if (error.cause) {
+      console.error('Root cause:', error.cause.message)
+    }
+  }
+}
+```
+
+**How to reduce occurrence:**
+- Use a more capable model (e.g., `gpt-4o` instead of `gpt-4o-mini`)
+- Increase `maxRetries` (default: 3)
+- Add a `systemPromptPrefix` with domain-specific instructions
+
+### `OcrNotEnabledError`
+
+Thrown when a scanned PDF is detected but OCR processing fails.
+
+**When it occurs:**
+- `tesseract.js` encounters an internal error
+- The PDF pages cannot be rasterized (corrupted PDF)
+
+```typescript
+import { parseResume, OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR failed:', error.message)
+    // Suggest the user provide a text-native PDF
+  }
+}
+```
+
+## Partial results
+
+In task decomposition mode, section failures are non-fatal. If a section fails after all retries, it is omitted from the result rather than throwing an error. The other sections are still returned.
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+// Check which sections succeeded
+for (const section of result.meta.sectionResults ?? []) {
+  if (!section.success) {
+    console.warn(`Section '${section.section}' failed: ${section.error}`)
+  }
+}
+
+// result.data still contains all successfully extracted sections
+console.log(result.data.basics?.name) // available even if 'languages' failed
+```
+
+## Cancellation
+
+Use an `AbortSignal` to cancel in-flight requests:
+
+```typescript
+const controller = new AbortController()
+
+// Cancel after 30 seconds
+setTimeout(() => controller.abort(), 30_000)
+
+try {
+  const result = await parseResume(pdfBuffer, {
+    model,
+    abortSignal: controller.signal,
+  })
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Extraction was cancelled')
+  }
+}
+```
+
+## Provider errors
+
+Provider-specific errors (rate limits, authentication failures, network errors) are thrown as-is from the Vercel AI SDK. They are not wrapped in `ResumeExtractionError`.
+
+```typescript
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    // resume-intel validation failure
+  } else if (error instanceof OcrNotEnabledError) {
+    // OCR failure
+  } else {
+    // Provider API error — check error.message for details
+    console.error('Provider error:', error.message)
+  }
+}
+```

@@ -1,0 +1,72 @@
+---
+title: Installation
+description: Install @edwinfom/resume-intel and choose your AI provider.
+---
+
+# Installation
+
+## Requirements
+
+- Node.js >= 20.0.0
+- An AI provider SDK (see below)
+
+## Install the package
+
+```bash
+npm install @edwinfom/resume-intel ai
+# or
+pnpm add @edwinfom/resume-intel ai
+```
+
+The `ai` package is the Vercel AI SDK — it provides the model interface that `resume-intel` uses internally.
+
+## Install an AI provider
+
+Install the provider SDK for the model you want to use:
+
+```bash
+# DeepSeek — best cost/performance ratio for structured extraction
+npm install @ai-sdk/deepseek
+
+# OpenAI
+npm install @ai-sdk/openai
+
+# Anthropic
+npm install @ai-sdk/anthropic
+
+# Google Gemini
+npm install @ai-sdk/google
+
+# Mistral
+npm install @ai-sdk/mistral
+```
+
+For **Ollama** (local models), no extra package is needed — use `@ai-sdk/openai` with a custom `baseURL`.
+
+## Verify the installation
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+console.log(typeof parseResume) // 'function'
+```
+
+## TypeScript configuration
+
+`resume-intel` is built with TypeScript and ships full type definitions. No additional `@types` packages are needed.
+
+Minimum recommended `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true
+  }
+}
+```
+
+## ESM and CJS
+
+The package ships both ESM (`dist/index.js`) and CJS (`dist/index.cjs`) builds. It works in both module systems without any configuration.

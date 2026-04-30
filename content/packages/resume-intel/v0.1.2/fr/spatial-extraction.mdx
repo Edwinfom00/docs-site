@@ -1,0 +1,85 @@
+---
+title: Extraction spatiale
+description: Comment resume-intel reconstruit l'ordre de lecture logique des mises en page PDF multicolonnes grâce aux coordonnées de boîtes englobantes.
+---
+
+# Extraction spatiale
+
+## Le problème des extracteurs PDF standard
+
+Les extracteurs PDF standard lisent le texte dans l'ordre de rendu — l'ordre dans lequel le moteur PDF dessine les caractères à l'écran. Pour un document à une seule colonne, cela correspond à l'ordre de lecture. Pour un CV à deux colonnes, ce n'est pas le cas.
+
+Avec cette mise en page :
+
+```
+┌─────────────────┬─────────────────┐
+│ Ingénieur Senior│ TypeScript      │
+│ 2020 – Présent  │ Node.js         │
+│                 │ React           │
+│ Ingénieur Junior│                 │
+│ 2018 – 2020     │ PostgreSQL      │
+└─────────────────┴─────────────────┘
+```
+
+Un extracteur standard produit :
+
+```
+Ingénieur Senior TypeScript
+2020 – Présent Node.js
+Ingénieur Junior React
+2018 – 2020 PostgreSQL
+```
+
+Les dates et les intitulés de postes s'entremêlent avec les compétences. Le LLM reçoit un chaos sémantique et hallucine.
+
+## Comment resume-intel résout ce problème
+
+`resume-intel` extrait les coordonnées de boîtes englobantes pour chaque bloc de texte en même temps que le contenu textuel. Il effectue ensuite :
+
+1. **Détection des limites de colonnes** — trie les blocs par position X et identifie les espaces horizontaux significatifs (> 8% de la largeur de page) qui indiquent des séparateurs de colonnes
+2. **Regroupement par colonne** — assigne chaque bloc à une colonne selon sa coordonnée X centrale
+3. **Tri dans chaque colonne** — trie les blocs de haut en bas par coordonnée Y dans chaque colonne
+4. **Concaténation de gauche à droite** — joint les colonnes dans l'ordre avec un séparateur visuel
+
+Le LLM reçoit :
+
+```
+Ingénieur Senior
+2020 – Présent
+
+Ingénieur Junior
+2018 – 2020
+
+---
+
+TypeScript
+Node.js
+React
+
+PostgreSQL
+```
+
+Un texte propre et ordonné que le LLM peut parser correctement.
+
+## Configuration
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  layoutStrategy: 'spatial', // défaut — utilise l'algorithme de boîtes englobantes
+  // layoutStrategy: 'linear', // plus rapide mais moins précis pour le multicolonne
+})
+```
+
+| Stratégie | Description | Utiliser quand |
+|---|---|---|
+| `spatial` | Détection de colonnes par boîtes englobantes (défaut) | La plupart des CVs, surtout multicolonnes |
+| `linear` | Extraction simple de haut en bas | CVs à une colonne, traitement plus rapide |
+
+## Limitations
+
+- **Texte pivoté** — le texte pivoté de plus de 45° peut ne pas être correctement ordonné
+- **Colonnes très proches** — les espaces de colonnes très étroits (< 8% de la largeur de page) peuvent ne pas être détectés
+- **PDFs scannés** — pas de boîtes englobantes disponibles depuis l'OCR ; la reconstruction spatiale est ignorée
+
+Pour les PDFs scannés, voir [Fallback OCR](/docs/resume-intel/v0.1.2/fr/ocr-fallback).

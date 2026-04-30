@@ -1,0 +1,86 @@
+---
+title: Spatial Extraction
+description: How resume-intel reconstructs the logical reading order of multi-column PDF layouts using bounding box coordinates.
+---
+
+# Spatial Extraction
+
+## The problem with standard PDF extraction
+
+Standard PDF extractors read text in rendering order — the order in which the PDF renderer draws characters on screen. For a single-column document this matches reading order. For a two-column CV it does not.
+
+Given this layout:
+
+```
+┌─────────────────┬─────────────────┐
+│ Senior Engineer │ TypeScript      │
+│ 2020 – Present  │ Node.js         │
+│                 │ React           │
+│ Junior Engineer │                 │
+│ 2018 – 2020     │ PostgreSQL      │
+└─────────────────┴─────────────────┘
+```
+
+A standard extractor produces:
+
+```
+Senior Engineer TypeScript
+2020 – Present Node.js
+Junior Engineer React
+2018 – 2020 PostgreSQL
+```
+
+Dates and job titles are interleaved with skills. The LLM receives semantic chaos and hallucinates.
+
+## How resume-intel solves this
+
+`resume-intel` extracts bounding box coordinates for every text block alongside the text content. It then:
+
+1. **Detects column boundaries** — sorts blocks by X position and identifies significant horizontal gaps (> 8% of page width) that indicate column separators
+2. **Groups blocks into columns** — assigns each block to a column based on its center X coordinate
+3. **Sorts within each column** — sorts blocks top-to-bottom by Y coordinate within each column
+4. **Concatenates left-to-right** — joins columns in order with a visual separator
+
+The LLM receives:
+
+```
+Senior Engineer
+2020 – Present
+
+Junior Engineer
+2018 – 2020
+
+---
+
+TypeScript
+Node.js
+React
+
+PostgreSQL
+```
+
+Clean, ordered text that the LLM can parse correctly.
+
+## Configuration
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  layoutStrategy: 'spatial', // default — uses bounding box algorithm
+  // layoutStrategy: 'linear', // faster but less accurate for multi-column
+})
+```
+
+| Strategy | Description | Use when |
+|---|---|---|
+| `spatial` | Bounding box column detection (default) | Most CVs, especially multi-column |
+| `linear` | Simple top-to-bottom extraction | Single-column CVs, faster processing |
+
+## Limitations
+
+- **Rotated text** — text rotated more than 45° may not be correctly ordered
+- **Overlapping columns** — very narrow column gaps (< 8% of page width) may not be detected
+- **Complex tables** — nested tables within CVs may require manual post-processing
+- **Scanned PDFs** — no bounding boxes available from OCR; spatial reconstruction is skipped (text is returned as-is from Tesseract)
+
+For scanned PDFs, see [OCR Fallback](/docs/resume-intel/v0.1.2/en/ocr-fallback).

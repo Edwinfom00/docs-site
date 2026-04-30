@@ -1,0 +1,74 @@
+---
+title: Démarrage rapide
+description: Parsez votre premier CV PDF en moins de 5 minutes.
+---
+
+# Démarrage rapide
+
+## Exemple minimal
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+const pdfBuffer = readFileSync('./cv.pdf')
+
+const result = await parseResume(pdfBuffer, {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})
+
+console.log(result.data.basics?.name)    // "Jean Dupont"
+console.log(result.data.work?.length)    // 3
+console.log(result.meta.ocrFallback)     // false (true si PDF scanné)
+```
+
+## Avec OpenAI
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const result = await parseResume(pdfBuffer, {
+  model: createOpenAI({ apiKey: process.env.OPENAI_API_KEY })('gpt-4o-mini'),
+})
+```
+
+## Avec Ollama (local)
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const result = await parseResume(pdfBuffer, {
+  model: createOpenAI({
+    baseURL: 'http://localhost:11434/v1',
+    apiKey: 'ollama',
+  })('llama3.1'),
+})
+```
+
+## Gestion des erreurs
+
+```typescript
+import { parseResume, OcrNotEnabledError, ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR échoué:', error.message)
+  } else if (error instanceof ResumeExtractionError) {
+    console.error('Extraction échouée:', error.message)
+    console.error('Cause:', error.cause?.message)
+  }
+}
+```
+
+## Étapes suivantes
+
+- [Extraction spatiale](/docs/resume-intel/v0.1.2/fr/spatial-extraction) — comment les mises en page multicolonnes sont gérées
+- [Décomposition par section](/docs/resume-intel/v0.1.2/fr/task-decomposition) — extraction parallèle avec 15 sections
+- [Validation JSON](/docs/resume-intel/v0.1.2/fr/json-validation) — pipeline de réparation et retry
+- [CLI](/docs/resume-intel/v0.1.2/fr/cli) — parser depuis le terminal
+- [Référence API](/docs/resume-intel/v0.1.2/fr/api-reference) — documentation complète

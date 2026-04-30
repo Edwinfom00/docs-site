@@ -1,0 +1,61 @@
+---
+title: DeepSeek
+description: Using @edwinfom/resume-intel with DeepSeek V3 — the recommended provider for cost-effective resume extraction.
+---
+
+# DeepSeek
+
+DeepSeek V3 (`deepseek-chat`) is the recommended default provider for `resume-intel`. It offers the best cost-to-performance ratio for structured extraction tasks.
+
+## Setup
+
+```bash
+npm install @ai-sdk/deepseek
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+const model = createDeepSeek({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+})('deepseek-chat')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## DeepSeek V3 vs R1
+
+| Model | Speed | Cost | Use for |
+|---|---|---|---|
+| `deepseek-chat` (V3) | Fast | ~$0.27/M tokens | Resume extraction — **recommended** |
+| `deepseek-reasoner` (R1) | Slow | ~$2.19/M tokens | Avoid for extraction |
+
+**Why avoid R1 for extraction?**
+
+DeepSeek R1 uses chain-of-thought reasoning and generates thousands of internal "thinking" tokens before producing output. For structured extraction this adds cost and latency without improving accuracy. It also suffers from "schema echo" on smaller model sizes — generating a syntactically perfect but empty structure.
+
+Stick with V3 (`deepseek-chat`) for resume parsing.
+
+## Important: DeepSeek cannot read raw PDFs
+
+DeepSeek V3 is a text-only model. It has no built-in PDF reading capability. If you try to submit a raw PDF buffer directly to the DeepSeek API, it will fail with "No text extracted" or similar errors.
+
+`resume-intel` handles this automatically — it extracts and cleans the text before sending it to DeepSeek. You never need to worry about this.
+
+## Known behaviors
+
+**Multi-column layouts** — Without spatial reconstruction, DeepSeek receives interleaved text from multiple columns and produces incorrect extractions. `resume-intel`'s spatial extraction layer solves this before the text reaches DeepSeek.
+
+**Continuation after JSON** — DeepSeek V3 occasionally continues generating text after a valid JSON object. The per-section `maxTokens` cap in v0.1.2 eliminates this.
+
+**Repetition loops** — On dense multi-page documents, DeepSeek can enter a repetition loop generating the same header repeatedly. The task decomposition approach (smaller, focused prompts per section) prevents this.
+
+## Cost estimation
+
+For a typical 2-page CV with task decomposition:
+
+- Prompt tokens: ~1,200 (full CV text × 6 sections)
+- Completion tokens: ~450 (structured JSON per section)
+- Total: ~1,650 tokens
+- Cost at $0.27/M: **~$0.00045 per CV**

@@ -1,0 +1,96 @@
+---
+title: Output Schema
+description: The JSON Resume v1 output schema — all fields, types, and examples.
+---
+
+# Output Schema
+
+`resume-intel` outputs data conforming to the [JSON Resume v1 specification](https://jsonresume.org/schema/) — an open standard used by hundreds of tools, portfolio generators, and ATS platforms.
+
+## Full schema example
+
+```json
+{
+  "basics": {
+    "name": "Jane Doe",
+    "label": "Senior Software Engineer",
+    "email": "jane@example.com",
+    "phone": "+1 (555) 123-4567",
+    "url": "https://janedoe.dev",
+    "summary": "10 years building distributed systems at scale...",
+    "location": {
+      "address": "123 Main St",
+      "city": "San Francisco",
+      "region": "California",
+      "postalCode": "94105",
+      "countryCode": "US"
+    },
+    "profiles": [
+      { "network": "LinkedIn", "username": "janedoe", "url": "https://linkedin.com/in/janedoe" },
+      { "network": "GitHub", "username": "janedoe", "url": "https://github.com/janedoe" }
+    ]
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "position": "Staff Engineer",
+      "url": "https://acme.com",
+      "startDate": "2021-03",
+      "highlights": [
+        "Led migration of monolith to microservices, reducing p99 latency by 60%",
+        "Managed a team of 8 engineers across 3 time zones"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "MIT",
+      "area": "Computer Science",
+      "studyType": "BSc",
+      "startDate": "2010",
+      "endDate": "2014",
+      "score": "3.9"
+    }
+  ],
+  "skills": [
+    { "name": "Backend", "level": "Expert", "keywords": ["Node.js", "TypeScript", "Go"] },
+    { "name": "Infrastructure", "keywords": ["Kubernetes", "Terraform", "AWS"] }
+  ],
+  "languages": [
+    { "language": "English", "fluency": "Native" },
+    { "language": "French", "fluency": "Conversational" }
+  ],
+  "projects": [
+    {
+      "name": "open-source-tool",
+      "description": "A CLI tool for...",
+      "url": "https://github.com/janedoe/open-source-tool"
+    }
+  ],
+  "certificates": [
+    { "name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2023-06" }
+  ],
+  "awards": [
+    { "title": "Best Paper Award", "awarder": "IEEE", "date": "2022" }
+  ]
+}
+```
+
+## Date format
+
+Dates follow the JSON Resume convention:
+- `YYYY-MM` when month is available (e.g., `"2021-03"`)
+- `YYYY` when only year is known (e.g., `"2014"`)
+- `endDate` is omitted for current positions
+
+## All optional fields
+
+Every field in the schema is optional. If a field is not present in the source CV, it is omitted from the output — never set to `null` or an empty string.
+
+## Interoperability
+
+Because the output conforms to JSON Resume v1, it works directly with:
+- [jsonresume.org](https://jsonresume.org) — online resume renderer
+- [resume-cli](https://github.com/jsonresume/resume-cli) — command-line renderer
+- Hundreds of community themes and templates
+- ATS platforms that support the JSON Resume standard

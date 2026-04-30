@@ -1,0 +1,208 @@
+---
+title: API Reference
+description: Complete API reference for @edwinfom/resume-intel v0.1.2 — parseResume, options, return types, exported schemas, and constants.
+---
+
+# API Reference
+
+## `parseResume(input, options)`
+
+The main function. Accepts a PDF buffer and returns structured resume data.
+
+### Parameters
+
+**`input`** — `Buffer | ArrayBuffer | Uint8Array`
+
+The PDF file content. All three buffer types are accepted.
+
+**`options`** — `ResumeIntelOptions`
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `model` | `LanguageModel` | required | Any Vercel AI SDK compatible model |
+| `maxRetries` | `number` | `3` | Max self-correction attempts per section on validation failure |
+| `layoutStrategy` | `'spatial' \| 'linear'` | `'spatial'` | PDF text extraction strategy |
+| `useTaskDecomposition` | `boolean` | `true` | Run parallel per-section extractions |
+| `sections` | `ResumeSectionKey[]` | see below | Which sections to extract |
+| `outputSchema` | `ZodType` | JSON Resume v1 | Custom Zod schema to replace the default output schema |
+| `systemPromptPrefix` | `string` | `''` | Custom instructions injected before extraction prompts |
+| `abortSignal` | `AbortSignal` | — | Standard abort signal for cancellation |
+
+**Default sections** (when `sections` is not specified):
+
+```
+basics, work, education, skills, languages, projects, certificates, volunteer
+```
+
+**All available sections:**
+
+```
+basics, work, education, skills, languages, projects,
+awards, certificates, publications, volunteer, interests, references
+```
+
+### Return value
+
+**`Promise<ResumeIntelResult>`**
+
+```typescript
+interface ResumeIntelResult {
+  data: JsonResume      // JSON Resume v1 compatible object (or custom outputSchema shape)
+  meta: ExtractionMeta
+}
+
+interface ExtractionMeta {
+  durationMs: number              // total processing time in ms
+  retryCount: number              // retries in single-shot mode
+  ocrFallback: boolean            // true if Tesseract OCR was used
+  layoutStrategy: 'spatial' | 'linear'
+  pageCount: number               // number of PDF pages
+  sectionsRequested: string[]     // which sections were requested
+  tokenUsage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  sectionResults?: Array<{        // task decomposition mode only
+    section: string
+    success: boolean
+    retryCount: number
+    error: string | null
+  }>
+}
+```
+
+### Selecting sections
+
+```typescript
+// Extract only what you need — saves tokens and time
+const result = await parseResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],
+})
+
+// Extract everything
+import { ALL_SECTIONS } from '@edwinfom/resume-intel'
+const result = await parseResume(buffer, {
+  model,
+  sections: [...ALL_SECTIONS],
+})
+```
+
+### Custom output schema
+
+```typescript
+import { z } from 'zod'
+
+// Replace JSON Resume with your own shape
+const result = await parseResume(buffer, {
+  model,
+  outputSchema: z.object({
+    fullName: z.string(),
+    contactEmail: z.string().email().optional(),
+    technicalSkills: z.array(z.string()),
+    yearsOfExperience: z.number().optional(),
+  }),
+  useTaskDecomposition: false, // single-shot works best with custom schemas
+})
+
+// result.data is typed as your custom schema output
+console.log(result.data.fullName)
+console.log(result.data.technicalSkills)
+```
+
+---
+
+## `JsonResumeSchema`
+
+The Zod schema for the JSON Resume v1 specification.
+
+```typescript
+import { JsonResumeSchema } from '@edwinfom/resume-intel'
+
+const result = JsonResumeSchema.safeParse(myData)
+if (!result.success) {
+  console.error(result.error.issues)
+}
+```
+
+## `SectionSchemas`
+
+Individual Zod schemas for each section.
+
+```typescript
+import { SectionSchemas } from '@edwinfom/resume-intel'
+
+const workResult = SectionSchemas.work.safeParse(myWorkData)
+```
+
+Available keys: `basics`, `work`, `education`, `skills`, `languages`, `projects`, `awards`, `certificates`, `publications`, `volunteer`, `interests`, `references`
+
+## `ALL_SECTIONS` / `DEFAULT_SECTIONS`
+
+```typescript
+import { ALL_SECTIONS, DEFAULT_SECTIONS } from '@edwinfom/resume-intel'
+
+console.log(ALL_SECTIONS)
+// ['basics', 'work', 'education', 'skills', 'languages', 'projects',
+//  'awards', 'certificates', 'publications', 'volunteer', 'interests', 'references']
+
+console.log(DEFAULT_SECTIONS)
+// ['basics', 'work', 'education', 'skills', 'languages', 'projects', 'certificates', 'volunteer']
+```
+
+---
+
+## Error classes
+
+### `ResumeExtractionError`
+
+Thrown when the LLM fails to produce valid data after all retry attempts.
+
+```typescript
+import { ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error(error.message)
+    console.error(error.cause)
+  }
+}
+```
+
+### `OcrNotEnabledError`
+
+Thrown when a scanned PDF is detected but OCR processing fails.
+
+```typescript
+import { OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR failed:', error.message)
+  }
+}
+```
+
+---
+
+## TypeScript types
+
+```typescript
+import type {
+  ResumeIntelOptions,
+  ResumeIntelResult,
+  ExtractionMeta,
+  SectionExtractionResult,
+  TokenUsage,
+  JsonResume,
+  ResumeSectionKey,
+  TextBlock,
+  SpatialDocument,
+  SpatialPage,
+} from '@edwinfom/resume-intel'
+```
