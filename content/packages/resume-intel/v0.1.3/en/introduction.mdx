@@ -1,0 +1,111 @@
+---
+title: Introduction
+description: @edwinfom/resume-intel is a LLM-first resume parsing infrastructure — model-agnostic, spatial PDF extraction, automatic OCR fallback, JSON Resume v1 output, and production-grade JSON validation.
+---
+
+# @edwinfom/resume-intel
+
+> LLM-first resume parsing infrastructure.
+> Model-agnostic · Spatial extraction · OCR fallback · JSON Resume compatible
+
+[![npm version](https://img.shields.io/npm/v/@edwinfom/resume-intel.svg)](https://www.npmjs.com/package/@edwinfom/resume-intel)
+[![license](https://img.shields.io/npm/l/@edwinfom/resume-intel.svg)](./LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+
+## What's new in v0.1.3
+
+- **Output normalizer** — date padding fix (`"2024-01-01"` → `"2024"`), `"Present"` endDate removal, truncated URL removal, invalid profile filtering
+- **Work section fix** — personal projects listed as work experience are now included
+- **Improved scan detection** — block count + char density heuristic reduces false positives
+- **`maxConcurrency` option** — limit parallel section calls (useful for rate-limited APIs)
+- **`onProgress` callback** — called after each section extraction with `(section, success)`
+- **`ocrLanguage` option** — Tesseract language code for non-English CVs
+- **`normalizeDate` and `cleanUrl` utility exports**
+
+See the full [Changelog](/docs/resume-intel/v0.1.3/en/changelog) for details.
+
+## The Problem
+
+Extracting structured data from resume PDFs is harder than it looks. Most tools either use brittle regex patterns that break on modern CV designs, or they wrap a single AI provider's API and lock you in forever.
+
+Here's what actually goes wrong in practice:
+
+- **Multi-column layouts** — column 1 and column 2 get interleaved. Dates mix with job descriptions. The LLM receives semantic chaos and hallucinates.
+- **DeepSeek and similar models can't read raw PDFs** — they are text-only models. You must extract and clean the text first, or every call fails silently.
+- **LLMs produce broken JSON** — missing closing braces, trailing commas, JSON wrapped in markdown fences. Without a repair layer, your pipeline crashes.
+- **Vendor lock-in** — if your parser only works with Claude or GPT-4, you can't switch to a cheaper or local model without rewriting your integration.
+- **Scanned PDFs** — no text layer at all. A basic extractor returns an empty string and you never know why.
+
+`resume-intel` is a four-layer pipeline that solves all of this:
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+const result = await parseResume(readFileSync('./resume.pdf'), {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})
+
+console.log(result.data.basics?.name)    // "Jane Doe"
+console.log(result.data.work?.length)    // 3
+console.log(result.meta.ocrFallback)     // true if scanned PDF
+console.log(result.meta.sectionResults) // per-section diagnostics
+```
+
+## How it works
+
+### 1 — Scan Detection
+
+Before any extraction, the package checks whether the PDF has an embedded text layer. If text density is below a threshold, the PDF is classified as scanned and the OCR pipeline triggers automatically.
+
+### 2a — Spatial PDF Extraction (text-native PDFs)
+
+Standard extractors read text in rendering order, not reading order. For a two-column CV this produces:
+
+```
+2020 Senior Engineer TypeScript Node.js
+2018 Junior Engineer React PostgreSQL
+```
+
+`resume-intel` extracts bounding box coordinates, detects column boundaries using gap analysis, sorts blocks within each column by vertical position, and concatenates columns left-to-right. The LLM receives clean, ordered text.
+
+### 2b — OCR Fallback (scanned PDFs)
+
+When a scanned PDF is detected:
+1. Rasterizes each page to PNG using `pdfjs-dist` + `@napi-rs/canvas` at 150 DPI
+2. Runs Tesseract.js (WASM) locally on each page image
+3. Cleans OCR artefacts (progress bars, separators, page numbers)
+
+No external OCR service. No network call. Everything runs locally.
+
+### 3 — Task Decomposition
+
+Instead of one monolithic LLM call, `resume-intel` runs parallel focused extractions per section — each with its own prompt, schema, `maxTokens` cap, and retry loop. This reduces hallucinations and isolates failures.
+
+### 4 — JSON Repair and Validation
+
+1. **Repair** — strips markdown fences, fixes trailing commas, missing brackets via `jsonrepair`
+2. **Validate** — Zod schema enforcement
+3. **Self-correct** — Zod errors are fed back to the LLM for targeted correction (up to `maxRetries` times)
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Spatial Extraction** | Bounding box algorithm reconstructs multi-column reading order |
+| **OCR Fallback** | Tesseract.js + `@napi-rs/canvas` for scanned PDFs, fully local |
+| **Model Agnostic** | Vercel AI SDK — works with DeepSeek, OpenAI, Anthropic, Gemini, Ollama |
+| **JSON Resume v1** | Output conforms to the open standard used by hundreds of tools |
+| **15 Sections** | basics, work, education, skills, languages, projects, awards, certificates, publications, volunteer, interests, references |
+| **Custom Sections** | `sections` option — extract only what you need |
+| **Custom Schema** | `outputSchema` option — replace JSON Resume with your own Zod schema |
+| **Zod Validation** | Full schema enforcement with self-correcting retry loop |
+| **JSON Repair** | `jsonrepair` handles markdown fences, trailing commas, truncated responses |
+| **Task Decomposition** | Parallel per-section extraction with independent retry |
+| **OCR Text Cleaning** | Strips Tesseract artefacts before LLM submission |
+| **Deduplication** | Removes duplicate array entries from multi-page scans |
+| **Observability** | `sectionResults` + `sectionsRequested` in meta |
+| **CLI** | `resume-intel parse <file.pdf>` — parse from the terminal |
+| **Serverless Ready** | Worker via `MessageChannel` — works on Vercel and AWS Lambda |
+| **TypeScript First** | Full type safety, ESM + CJS dual build |

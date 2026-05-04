@@ -1,0 +1,111 @@
+---
+title: Introduction
+description: @edwinfom/resume-intel est une infrastructure de parsing de CV orientée LLM — agnostique au modèle, extraction spatiale PDF, fallback OCR automatique, sortie JSON Resume v1, et validation JSON robuste.
+---
+
+# @edwinfom/resume-intel
+
+> Infrastructure de parsing de CV orientée LLM.
+> Agnostique au modèle · Extraction spatiale · Fallback OCR · Compatible JSON Resume
+
+[![npm version](https://img.shields.io/npm/v/@edwinfom/resume-intel.svg)](https://www.npmjs.com/package/@edwinfom/resume-intel)
+[![license](https://img.shields.io/npm/l/@edwinfom/resume-intel.svg)](./LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+
+## Nouveautés de la v0.1.3
+
+- **Normaliseur de sortie** — correction du padding des dates (`"2024-01-01"` → `"2024"`), suppression des `endDate` "Présent", suppression des URLs tronquées, filtrage des profils invalides
+- **Correction section work** — les projets personnels listés comme expérience professionnelle sont maintenant inclus
+- **Détection de scan améliorée** — heuristique nombre de blocs + densité de caractères réduit les faux positifs
+- **Option `maxConcurrency`** — limiter les appels parallèles (utile pour les APIs avec rate limiting)
+- **Callback `onProgress`** — appelé après chaque extraction de section avec `(section, success)`
+- **Option `ocrLanguage`** — code de langue Tesseract pour les CVs non-anglophones
+- **Exports utilitaires `normalizeDate` et `cleanUrl`**
+
+Voir le [Changelog](/docs/resume-intel/v0.1.3/fr/changelog) complet pour les détails.
+
+## Le problème
+
+Extraire des données structurées depuis des CVs PDF est plus difficile qu'il n'y paraît. La plupart des outils utilisent soit des expressions régulières fragiles qui cassent sur les designs modernes, soit ils s'appuient sur un seul fournisseur d'IA et vous enferment dans son écosystème.
+
+Voici ce qui se passe réellement en pratique :
+
+- **Mises en page multicolonnes** — la colonne 1 et la colonne 2 s'entremêlent. Les dates se mélangent aux descriptions de postes. Le LLM reçoit un chaos sémantique et hallucine.
+- **DeepSeek et modèles similaires ne peuvent pas lire les PDFs bruts** — ce sont des modèles texte uniquement. Sans extraction préalable, chaque appel échoue silencieusement.
+- **Les LLMs produisent du JSON cassé** — accolades manquantes, virgules en trop, JSON enveloppé dans des balises markdown. Sans couche de réparation, votre pipeline plante.
+- **Vendor lock-in** — si votre parser ne fonctionne qu'avec Claude ou GPT-4, vous ne pouvez pas changer de modèle sans réécrire votre intégration.
+- **PDFs scannés** — aucune couche texte. Un extracteur basique retourne une chaîne vide et vous ne savez jamais pourquoi.
+
+`resume-intel` est un pipeline en quatre couches qui résout tout cela :
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+const result = await parseResume(readFileSync('./cv.pdf'), {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})
+
+console.log(result.data.basics?.name)    // "Jean Dupont"
+console.log(result.data.work?.length)    // 3
+console.log(result.meta.ocrFallback)     // true si PDF scanné
+console.log(result.meta.sectionResults) // diagnostics par section
+```
+
+## Comment ça fonctionne
+
+### 1 — Détection du type de PDF
+
+Avant toute extraction, le package vérifie si le PDF contient une couche texte. Si la densité de texte est inférieure à un seuil, le PDF est classifié comme scanné et le pipeline OCR se déclenche automatiquement.
+
+### 2a — Extraction spatiale (PDFs natifs)
+
+Les extracteurs standard lisent le texte dans l'ordre de rendu, pas dans l'ordre de lecture. Pour un CV à deux colonnes, cela produit :
+
+```
+2020 Ingénieur Senior TypeScript Node.js
+2018 Ingénieur Junior React PostgreSQL
+```
+
+`resume-intel` extrait les coordonnées de boîtes englobantes pour chaque bloc de texte, détecte les limites de colonnes par analyse des espaces, trie les blocs dans chaque colonne de haut en bas, et concatène les colonnes de gauche à droite. Le LLM reçoit un texte propre et ordonné.
+
+### 2b — Fallback OCR (PDFs scannés)
+
+Quand un PDF scanné est détecté :
+1. Rastérisation de chaque page en PNG via `pdfjs-dist` + `@napi-rs/canvas` à 150 DPI
+2. OCR local avec Tesseract.js (WASM) sur chaque image
+3. Nettoyage des artefacts OCR (barres de progression, séparateurs, numéros de page)
+
+Aucun service OCR externe. Aucun appel réseau. Tout s'exécute localement.
+
+### 3 — Décomposition par section
+
+Au lieu d'un seul appel LLM monolithique, `resume-intel` exécute des extractions parallèles et ciblées par section — chacune avec son propre prompt, schéma, limite `maxTokens`, et boucle de retry. Cela réduit les hallucinations et isole les échecs.
+
+### 4 — Réparation et validation JSON
+
+1. **Réparation** — supprime les balises markdown, corrige les virgules en trop, les accolades manquantes via `jsonrepair`
+2. **Validation** — enforcement du schéma Zod
+3. **Auto-correction** — les erreurs Zod sont renvoyées au LLM pour correction ciblée (jusqu'à `maxRetries` fois)
+
+## Fonctionnalités
+
+| Fonctionnalité | Description |
+|---|---|
+| **Extraction spatiale** | Algorithme de boîtes englobantes pour reconstruire l'ordre de lecture multicolonne |
+| **Fallback OCR** | Tesseract.js + `@napi-rs/canvas` pour les PDFs scannés, entièrement local |
+| **Agnostique au modèle** | Vercel AI SDK — fonctionne avec DeepSeek, OpenAI, Anthropic, Gemini, Ollama |
+| **JSON Resume v1** | Sortie conforme au standard ouvert utilisé par des centaines d'outils |
+| **15 sections** | basics, work, education, skills, languages, projects, awards, certificates, publications, volunteer, interests, references |
+| **Sections personnalisables** | Option `sections` — extraire uniquement ce dont vous avez besoin |
+| **Schéma personnalisable** | Option `outputSchema` — remplacer JSON Resume par votre propre schéma Zod |
+| **Validation Zod** | Enforcement complet du schéma avec boucle de retry auto-correctrice |
+| **Réparation JSON** | `jsonrepair` gère les balises markdown, virgules en trop, réponses tronquées |
+| **Décomposition par section** | Extraction parallèle par section avec retry indépendant |
+| **Nettoyage OCR** | Supprime les artefacts Tesseract avant soumission au LLM |
+| **Déduplication** | Supprime les entrées dupliquées dans les tableaux |
+| **Observabilité** | `sectionResults` + `sectionsRequested` dans meta |
+| **CLI** | `resume-intel parse <file.pdf>` — parser depuis le terminal |
+| **Serverless** | Worker via `MessageChannel` — fonctionne sur Vercel et AWS Lambda |
+| **TypeScript First** | Typage complet, build dual ESM + CJS |

@@ -1,0 +1,82 @@
+---
+title: Ollama (Local)
+description: Using @edwinfom/resume-intel with local models via Ollama — no API key, no data leaves your machine.
+---
+
+# Ollama (Local)
+
+Ollama lets you run LLMs locally on your machine. No API key, no data sent to external servers — ideal for privacy-sensitive use cases.
+
+## Prerequisites
+
+1. Install Ollama: [https://ollama.ai](https://ollama.ai)
+2. Pull a model: `ollama pull llama3.1`
+3. Start the server: `ollama serve`
+
+## Setup
+
+Ollama exposes an OpenAI-compatible API at `http://localhost:11434/v1`. Use `@ai-sdk/openai` with a custom `baseURL`:
+
+```bash
+npm install @ai-sdk/openai
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const model = createOpenAI({
+  baseURL: 'http://localhost:11434/v1',
+  apiKey: 'ollama', // required by the SDK but not validated by Ollama
+})('llama3.1')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Recommended models
+
+| Model | Size | Quality | Notes |
+|---|---|---|---|
+| `llama3.1` | 8B | Good | Best balance for most hardware |
+| `llama3.1:70b` | 70B | Excellent | Requires 48GB+ RAM |
+| `mistral` | 7B | Good | Fast, good instruction following |
+| `qwen2.5:7b` | 7B | Good | Strong on structured output |
+
+## Performance expectations
+
+Local models are significantly slower than cloud APIs:
+
+| Model | Typical time (2-page CV) |
+|---|---|
+| DeepSeek V3 (cloud) | 3–8 seconds |
+| llama3.1 8B (local, M2 Mac) | 30–90 seconds |
+| llama3.1 70B (local, A100) | 15–40 seconds |
+
+## Tips for better results with local models
+
+**Use single-shot mode** — task decomposition makes 6 parallel calls which can overwhelm local servers:
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false, // single call, faster for local models
+  maxRetries: 2,
+})
+```
+
+**Increase retries** — smaller local models produce more validation failures:
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 5, // more retries for less reliable models
+})
+```
+
+**Check Ollama is running** — if you get a connection error:
+
+```bash
+ollama serve
+# or check if it's already running:
+curl http://localhost:11434/api/tags
+```

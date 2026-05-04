@@ -1,0 +1,137 @@
+---
+title: CLI
+description: The resume-intel command-line interface — parse resume PDFs directly from the terminal.
+---
+
+# CLI
+
+`resume-intel` ships a command-line interface that lets you parse resume PDFs directly from the terminal without writing any code.
+
+## Installation
+
+The CLI is included when you install the package:
+
+```bash
+npm install -g @edwinfom/resume-intel ai @ai-sdk/deepseek
+# or use npx without installing globally
+npx @edwinfom/resume-intel parse resume.pdf
+```
+
+## Usage
+
+```
+resume-intel parse <file.pdf> [options]
+```
+
+## Options
+
+| Option | Description | Default |
+|---|---|---|
+| `--model <provider:model>` | AI model to use | `deepseek:deepseek-chat` |
+| `--sections <s1,s2,...>` | Sections to extract | 8 default sections |
+| `--layout <spatial\|linear>` | Layout strategy | `spatial` |
+| `--output <json\|pretty>` | Output format | `pretty` |
+| `--out <file.json>` | Write output to file | stdout |
+| `--no-decompose` | Use single-shot extraction | — |
+| `--key <api-key>` | API key (or use env variable) | — |
+| `--help` | Show help | — |
+
+## Models
+
+```bash
+# DeepSeek — best cost/performance (default)
+# Requires: DEEPSEEK_API_KEY env var or --key
+resume-intel parse resume.pdf --model deepseek:deepseek-chat
+
+# OpenAI
+# Requires: OPENAI_API_KEY env var or --key
+resume-intel parse resume.pdf --model openai:gpt-4o-mini
+
+# Anthropic
+# Requires: ANTHROPIC_API_KEY env var or --key
+resume-intel parse resume.pdf --model anthropic:claude-3-5-haiku-20241022
+
+# Ollama — local, no API key needed
+# Requires: ollama serve running locally
+resume-intel parse resume.pdf --model ollama:llama3.1
+```
+
+## Examples
+
+```bash
+# Parse with DeepSeek (API key from environment)
+DEEPSEEK_API_KEY=sk-... resume-intel parse resume.pdf
+
+# Parse and write JSON to file
+resume-intel parse resume.pdf --out result.json
+
+# Extract only basics and work experience
+resume-intel parse resume.pdf --sections basics,work
+
+# Extract all 12 sections
+resume-intel parse resume.pdf --sections basics,work,education,skills,languages,projects,awards,certificates,publications,volunteer,interests,references
+
+# Raw JSON output for piping
+resume-intel parse resume.pdf --output json | jq .data.basics.name
+
+# Use OpenAI with explicit key
+resume-intel parse resume.pdf --model openai:gpt-4o-mini --key sk-...
+
+# Single-shot extraction (faster for simple CVs)
+resume-intel parse resume.pdf --no-decompose
+```
+
+## Pretty output
+
+By default, the CLI prints a formatted summary to the terminal:
+
+```
+resume-intel v0.1.3 — Extraction Result
+------------------------------------------------------------
+
+  BASICS
+    Name:     Jane Doe
+    Title:    Senior Software Engineer
+    Email:    jane@example.com
+    Location: San Francisco, California, US
+    Profiles: LinkedIn (janedoe) / GitHub (janedoe)
+
+  WORK EXPERIENCE  (2)
+    Staff Engineer @ Acme Corp  2021-03 -> Present
+      - Led migration of monolith to microservices
+      - Managed a team of 8 engineers
+    Senior Engineer @ Startup Inc  2018-06 -> 2021-02
+
+  EDUCATION  (1)
+    MIT  BSc in Computer Science  2010 -> 2014
+
+  SKILLS
+    Backend: Node.js, TypeScript, Go, PostgreSQL
+    Infrastructure: Kubernetes, Terraform, AWS
+
+  LANGUAGES
+    English (Native)  /  French (Conversational)
+
+  PROJECTS  (1)
+    open-source-tool
+      A CLI tool for...
+      https://github.com/janedoe/open-source-tool
+
+------------------------------------------------------------
+  METADATA
+    Duration:  2340ms
+    Pages:     2
+    OCR:       no (text-native)
+    Sections:  basics, work, education, skills, languages, projects, certificates, volunteer
+    Tokens:    1850 total  (1200 prompt + 650 completion)
+------------------------------------------------------------
+```
+
+## Environment variables
+
+| Variable | Provider |
+|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek |
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `GOOGLE_API_KEY` | Google Gemini |

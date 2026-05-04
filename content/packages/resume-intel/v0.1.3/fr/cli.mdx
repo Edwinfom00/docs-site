@@ -1,0 +1,88 @@
+---
+title: CLI
+description: L'interface en ligne de commande resume-intel — parser des CVs PDF directement depuis le terminal.
+---
+
+# CLI
+
+`resume-intel` inclut une interface en ligne de commande qui permet de parser des CVs PDF directement depuis le terminal sans écrire de code.
+
+## Installation
+
+Le CLI est inclus lors de l'installation du package :
+
+```bash
+npm install -g @edwinfom/resume-intel ai @ai-sdk/deepseek
+# ou utiliser npx sans installation globale
+npx @edwinfom/resume-intel parse cv.pdf
+```
+
+## Utilisation
+
+```
+resume-intel parse <file.pdf> [options]
+```
+
+## Options
+
+| Option | Description | Défaut |
+|---|---|---|
+| `--model <provider:model>` | Modèle IA à utiliser | `deepseek:deepseek-chat` |
+| `--sections <s1,s2,...>` | Sections à extraire | 8 sections par défaut |
+| `--layout <spatial\|linear>` | Stratégie de mise en page | `spatial` |
+| `--output <json\|pretty>` | Format de sortie | `pretty` |
+| `--out <file.json>` | Écrire la sortie dans un fichier | stdout |
+| `--no-decompose` | Extraction en un seul appel | — |
+| `--key <api-key>` | Clé API (ou variable d'environnement) | — |
+| `--help` | Afficher l'aide | — |
+
+## Modèles
+
+```bash
+# DeepSeek — meilleur rapport coût/performance (défaut)
+# Requiert : variable DEEPSEEK_API_KEY ou --key
+resume-intel parse cv.pdf --model deepseek:deepseek-chat
+
+# OpenAI
+# Requiert : variable OPENAI_API_KEY ou --key
+resume-intel parse cv.pdf --model openai:gpt-4o-mini
+
+# Anthropic
+# Requiert : variable ANTHROPIC_API_KEY ou --key
+resume-intel parse cv.pdf --model anthropic:claude-3-5-haiku-20241022
+
+# Ollama — local, aucune clé API nécessaire
+# Requiert : ollama serve en cours d'exécution
+resume-intel parse cv.pdf --model ollama:llama3.1
+```
+
+## Exemples
+
+```bash
+# Parser avec DeepSeek (clé API depuis l'environnement)
+DEEPSEEK_API_KEY=sk-... resume-intel parse cv.pdf
+
+# Parser et écrire le JSON dans un fichier
+resume-intel parse cv.pdf --out resultat.json
+
+# Extraire uniquement les informations de base et l'expérience
+resume-intel parse cv.pdf --sections basics,work
+
+# Extraire les 12 sections
+resume-intel parse cv.pdf --sections basics,work,education,skills,languages,projects,awards,certificates,publications,volunteer,interests,references
+
+# Sortie JSON brute pour le piping
+resume-intel parse cv.pdf --output json | jq .data.basics.name
+
+# Extraction en un seul appel (plus rapide pour les CVs simples)
+resume-intel parse cv.pdf --no-decompose
+```
+
+## Variables d'environnement
+
+| Variable | Fournisseur |
+|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek |
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `GOOGLE_API_KEY` | Google Gemini |
