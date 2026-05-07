@@ -1,0 +1,106 @@
+---
+title: Quick Start
+description: Parse your first resume PDF in under 5 minutes.
+---
+
+# Quick Start
+
+## Minimal example
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+const pdfBuffer = readFileSync('./resume.pdf')
+
+const result = await parseResume(pdfBuffer, {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})
+
+console.log(result.data.basics?.name)           // "Jane Doe"
+console.log(result.data.basics?.email)          // "jane@example.com"
+console.log(result.data.work?.length)           // 3
+console.log(result.data.skills?.[0]?.keywords)  // ["TypeScript", "Node.js"]
+console.log(result.meta.durationMs)             // 2340
+console.log(result.meta.ocrFallback)            // false (true if scanned PDF)
+```
+
+## With OpenAI
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const result = await parseResume(pdfBuffer, {
+  model: createOpenAI({ apiKey: process.env.OPENAI_API_KEY })('gpt-4o-mini'),
+})
+```
+
+## With a local Ollama model
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+// Ollama exposes an OpenAI-compatible API at localhost:11434
+const result = await parseResume(pdfBuffer, {
+  model: createOpenAI({
+    baseURL: 'http://localhost:11434/v1',
+    apiKey: 'ollama',
+  })('llama3.1'),
+})
+```
+
+## Reading the result
+
+```typescript
+const { data, meta } = result
+
+// JSON Resume v1 fields
+data.basics?.name
+data.basics?.email
+data.basics?.phone
+data.basics?.location?.city
+data.work?.[0]?.name        // company name
+data.work?.[0]?.position    // job title
+data.work?.[0]?.startDate   // "2021-03"
+data.education?.[0]?.institution
+data.skills?.[0]?.keywords
+data.languages?.[0]?.language
+data.projects?.[0]?.url
+
+// Extraction metadata
+meta.durationMs             // total time in ms
+meta.ocrFallback            // true if Tesseract was used
+meta.pageCount              // number of PDF pages
+meta.tokenUsage?.totalTokens
+meta.sectionResults         // per-section diagnostics (task decomposition mode)
+```
+
+## Handling errors
+
+```typescript
+import { parseResume, OcrNotEnabledError, ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    // Scanned PDF — OCR failed (tesseract.js issue)
+    console.error('OCR failed:', error.message)
+  } else if (error instanceof ResumeExtractionError) {
+    // LLM failed after all retries
+    console.error('Extraction failed:', error.message)
+    console.error('Root cause:', error.cause?.message)
+  }
+}
+```
+
+## Next steps
+
+- Learn about [Spatial Extraction](/docs/resume-intel/v0.2.0/en/spatial-extraction) — how multi-column layouts are handled
+- Configure [Task Decomposition](/docs/resume-intel/v0.2.0/en/task-decomposition) — parallel section extraction with 15 sections
+- Understand [JSON Validation](/docs/resume-intel/v0.2.0/en/json-validation) — repair and retry pipeline
+- Use the [CLI](/docs/resume-intel/v0.2.0/en/cli) — parse from the terminal
+- See the full [API Reference](/docs/resume-intel/v0.2.0/en/api-reference)

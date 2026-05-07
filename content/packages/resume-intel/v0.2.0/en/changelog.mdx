@@ -1,0 +1,79 @@
+---
+title: Changelog
+description: Version history for @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.2.0] — 2026-05-07
+
+### Added
+
+- **`streamResume()` function** — AsyncGenerator that yields events as each section is extracted. The UI can update progressively instead of waiting for the full result.
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+
+for await (const event of streamResume(buffer, { model })) {
+  if (event.type === 'section') {
+    updateUI(event.section, event.data)
+  }
+  if (event.type === 'done') {
+    console.log('Complete:', event.result.data.basics?.name)
+  }
+}
+```
+
+- **`StreamResumeEvent` type export** — union type for streaming events (`section` | `error` | `done`).
+
+### Fixed
+
+- **`YYYY-01` date padding** — `"2025-01"` → `"2025"` (month-only padding now stripped, not just day-only)
+- **Empty arrays removed** — `volunteer: []`, `interests: []`, `references: []` are now omitted from output
+- **Empty skill categories removed** — skills with no keywords are filtered out
+- **Empty keyword arrays removed** — `{ name: "Databases", keywords: [] }` → field omitted
+- **Empty highlights filtered** — empty strings in highlights arrays are removed
+
+---
+
+## [0.1.3] — 2026-05-01
+
+### Added
+
+- Output normalizer, `maxConcurrency`, `onProgress`, `ocrLanguage` options, `normalizeDate`/`cleanUrl` exports.
+
+### Fixed
+
+- Work section missing entries, scan detection false positives.
+
+---
+
+## [0.1.2-hotfix.1] — 2026-04-30
+
+### Fixed
+
+- Serverless OCR crash — `disableOcr: true` option added.
+
+---
+
+## [0.1.2] — 2026-04-30
+
+### Added
+
+- 15 sections, `sections` option, `outputSchema` option, CLI, serverless worker fix.
+
+---
+
+## [0.1.1-beta.1] — 2026-04-28
+
+### Added
+
+- Per-section `maxTokens`, `temperature: 0`, OCR text cleaning, per-section retry, deduplication, `sectionResults` in meta.
+
+---
+
+## [0.1.0] — 2026-04-27
+
+### Added
+
+- Initial release. Spatial extraction, OCR fallback, model-agnostic adapter, JSON Resume v1, Zod validation, jsonrepair, parallel task decomposition.

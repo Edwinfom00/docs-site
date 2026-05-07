@@ -1,0 +1,101 @@
+---
+title: Gestion des erreurs
+description: Toutes les erreurs levées par @edwinfom/resume-intel et comment les gérer.
+---
+
+# Gestion des erreurs
+
+## Classes d'erreur
+
+### `ResumeExtractionError`
+
+Levée quand le LLM échoue à produire des données structurées valides après toutes les tentatives de retry.
+
+```typescript
+import { parseResume, ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error('Extraction échouée:', error.message)
+    if (error.cause) {
+      console.error('Cause:', error.cause.message)
+    }
+  }
+}
+```
+
+### `OcrNotEnabledError`
+
+Levée quand un PDF scanné est détecté mais que le traitement OCR échoue.
+
+```typescript
+import { parseResume, OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR échoué:', error.message)
+  }
+}
+```
+
+## Résultats partiels
+
+En mode décomposition par section, les échecs de section sont non-fatals. Si une section échoue après tous les retries, elle est omise du résultat plutôt que de lever une erreur. Les autres sections sont toujours retournées.
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+for (const section of result.meta.sectionResults ?? []) {
+  if (!section.success) {
+    console.warn(`Section '${section.section}' échouée: ${section.error}`)
+  }
+}
+
+// result.data contient toujours toutes les sections extraites avec succès
+console.log(result.data.basics?.name) // disponible même si 'languages' a échoué
+```
+
+## Annulation
+
+Utilisez un `AbortSignal` pour annuler les requêtes en cours :
+
+```typescript
+const controller = new AbortController()
+
+// Annuler après 30 secondes
+setTimeout(() => controller.abort(), 30_000)
+
+try {
+  const result = await parseResume(pdfBuffer, {
+    model,
+    abortSignal: controller.signal,
+  })
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Extraction annulée')
+  }
+}
+```
+
+## Erreurs de fournisseur
+
+Les erreurs spécifiques aux fournisseurs (limites de débit, échecs d'authentification, erreurs réseau) sont levées telles quelles depuis le Vercel AI SDK. Elles ne sont pas enveloppées dans `ResumeExtractionError`.
+
+```typescript
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    // Échec de validation resume-intel
+  } else if (error instanceof OcrNotEnabledError) {
+    // Échec OCR
+  } else {
+    // Erreur API du fournisseur
+    console.error('Erreur fournisseur:', error.message)
+  }
+}
+```

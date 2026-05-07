@@ -1,0 +1,79 @@
+---
+title: Changelog
+description: Historique des versions de @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## [0.2.0] — 7 mai 2026
+
+### Ajouté
+
+- **Fonction `streamResume()`** — AsyncGenerator qui yield des événements au fur et à mesure que chaque section est extraite. L'UI peut se mettre à jour progressivement au lieu d'attendre le résultat complet.
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+
+for await (const event of streamResume(buffer, { model })) {
+  if (event.type === 'section') {
+    updateUI(event.section, event.data)
+  }
+  if (event.type === 'done') {
+    console.log('Terminé :', event.result.data.basics?.name)
+  }
+}
+```
+
+- **Export du type `StreamResumeEvent`** — type union pour les événements de streaming (`section` | `error` | `done`).
+
+### Corrigé
+
+- **Padding dates `YYYY-01`** — `"2025-01"` → `"2025"` (padding mois-seulement maintenant supprimé)
+- **Tableaux vides supprimés** — `volunteer: []`, `interests: []`, `references: []` sont maintenant omis de la sortie
+- **Catégories de compétences vides supprimées** — les skills sans keywords sont filtrés
+- **Tableaux de keywords vides supprimés** — `{ name: "Databases", keywords: [] }` → champ omis
+- **Highlights vides filtrés** — les chaînes vides dans les tableaux highlights sont supprimées
+
+---
+
+## [0.1.3] — 1er mai 2026
+
+### Ajouté
+
+- Normaliseur de sortie, options `maxConcurrency`, `onProgress`, `ocrLanguage`, exports `normalizeDate`/`cleanUrl`.
+
+### Corrigé
+
+- Entrées manquantes dans la section work, faux positifs de détection de scan.
+
+---
+
+## [0.1.2-hotfix.1] — 30 avril 2026
+
+### Corrigé
+
+- Crash OCR serverless — option `disableOcr: true` ajoutée.
+
+---
+
+## [0.1.2] — 30 avril 2026
+
+### Ajouté
+
+- 15 sections, option `sections`, option `outputSchema`, CLI, fix worker serverless.
+
+---
+
+## [0.1.1-beta.1] — 28 avril 2026
+
+### Ajouté
+
+- `maxTokens` par section, `temperature: 0`, nettoyage OCR, retry par section, déduplication, `sectionResults` dans meta.
+
+---
+
+## [0.1.0] — 27 avril 2026
+
+### Ajouté
+
+- Version initiale. Extraction spatiale, fallback OCR, adaptateur agnostique, JSON Resume v1, validation Zod, jsonrepair, décomposition parallèle.

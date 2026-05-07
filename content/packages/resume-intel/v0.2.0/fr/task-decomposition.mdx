@@ -1,0 +1,110 @@
+---
+title: Décomposition par section
+description: Comment resume-intel divise l'extraction en appels LLM parallèles par section pour réduire les hallucinations et améliorer la fiabilité.
+---
+
+# Décomposition par section
+
+## Le problème de l'extraction en un seul appel
+
+Demander à un seul appel LLM de remplir l'intégralité du schéma JSON Resume pose plusieurs problèmes :
+
+- **Charge cognitive élevée** — le modèle doit simultanément extraire les coordonnées, l'historique professionnel, la formation, les compétences, les langues et les projets
+- **Écho de schéma** — les petits modèles génèrent une structure syntaxiquement parfaite mais vide
+- **Pollution inter-sections** — les projets se retrouvent dans l'expérience professionnelle, les langues dans les compétences
+- **Gaspillage de tokens** — le texte complet du CV est envoyé une fois, mais la plupart est non pertinent pour chaque section
+
+## Comment fonctionne la décomposition
+
+`resume-intel` exécute des extractions parallèles et ciblées par section. Par défaut, 8 sections s'exécutent en parallèle :
+
+```
+Texte du CV
+    ↓
+┌─────────┬──────┬───────────┬────────┬───────────┬──────────┬──────────────┬───────────┐
+│ basics  │ work │ education │ skills │ languages │ projects │ certificates │ volunteer │
+│ prompt  │ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+│ schéma  │ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+│maxTokens│ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+└─────────┴──────┴───────────┴────────┴───────────┴──────────┴──────────────┴───────────┘
+    ↓         ↓        ↓         ↓          ↓          ↓             ↓             ↓
+  résultat  ...      ...       ...        ...        ...           ...           ...
+    ↓
+  fusion → déduplication → validation → retour
+```
+
+Chaque section s'exécute en parallèle. Un échec dans une section ne bloque pas les autres.
+
+## Choisir les sections à extraire
+
+Par défaut, 8 sections sont extraites. Vous pouvez surcharger cela avec l'option `sections` :
+
+```typescript
+// Extraire uniquement ce dont vous avez besoin — économise des tokens
+const result = await parseResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],
+})
+
+// Extraire les 12 sections disponibles
+import { ALL_SECTIONS } from '@edwinfom/resume-intel'
+const result = await parseResume(buffer, {
+  model,
+  sections: [...ALL_SECTIONS],
+})
+```
+
+## Les 12 sections disponibles
+
+| Section | Max tokens | Contenu |
+|---|---|---|
+| `basics` | 500 | Nom, email, téléphone, localisation, résumé, profils |
+| `work` | 1200 | Expérience professionnelle avec points clés |
+| `education` | 600 | Diplômes, certifications, cours |
+| `skills` | 400 | Compétences techniques groupées par catégorie |
+| `languages` | 200 | Langues parlées avec niveau de maîtrise |
+| `projects` | 700 | Projets personnels et side projects |
+| `awards` | 300 | Prix et distinctions |
+| `certificates` | 300 | Certifications professionnelles |
+| `publications` | 400 | Articles, livres, publications |
+| `volunteer` | 450 | Bénévolat et service communautaire |
+| `interests` | 200 | Centres d'intérêt et loisirs |
+| `references` | 250 | Références professionnelles |
+
+## Retry par section
+
+Si une section échoue la validation Zod, elle réessaie indépendamment avec l'erreur renvoyée au LLM :
+
+```
+Tentative 1 : échec — "work.0.startDate doit être au format YYYY-MM"
+    ↓
+Tentative 2 (avec prompt de correction) : succès
+    ↓
+Résultat fusionné
+```
+
+## Observabilité
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+console.log(result.meta.sectionsRequested)
+// ['basics', 'work', 'education', 'skills', 'languages', 'projects', 'certificates', 'volunteer']
+
+for (const s of result.meta.sectionResults ?? []) {
+  const status  = s.success ? 'OK  ' : 'FAIL'
+  const retries = s.retryCount > 0 ? ` (${s.retryCount} retries)` : ''
+  console.log(`${status} ${s.section}${retries}`)
+}
+```
+
+## Désactiver la décomposition
+
+Pour les CVs simples ou avec un `outputSchema` personnalisé, le mode single-shot est plus rapide :
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false,
+})
+```

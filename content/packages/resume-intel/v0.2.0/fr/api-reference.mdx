@@ -1,0 +1,188 @@
+---
+title: Référence API
+description: Référence API complète pour @edwinfom/resume-intel v0.2.0 — parseResume, options, types de retour, schémas exportés et fonctions utilitaires.
+---
+
+# Référence API
+
+## `parseResume(input, options)`
+
+La fonction principale. Accepte un buffer PDF et retourne des données de CV structurées.
+
+### Paramètres
+
+**`input`** — `Buffer | ArrayBuffer | Uint8Array`
+
+Le contenu du fichier PDF. Les trois types de buffer sont acceptés.
+
+**`options`** — `ResumeIntelOptions`
+
+| Option | Type | Défaut | Description |
+|---|---|---|---|
+| `model` | `LanguageModel` | requis | Tout modèle compatible Vercel AI SDK |
+| `maxRetries` | `number` | `3` | Tentatives max d'auto-correction par section |
+| `layoutStrategy` | `'spatial' \| 'linear'` | `'spatial'` | Stratégie d'extraction de texte PDF |
+| `useTaskDecomposition` | `boolean` | `true` | Extractions parallèles par section |
+| `sections` | `ResumeSectionKey[]` | voir ci-dessous | Quelles sections extraire |
+| `outputSchema` | `ZodType` | JSON Resume v1 | Schéma Zod personnalisé pour remplacer le schéma par défaut |
+| `systemPromptPrefix` | `string` | `''` | Instructions personnalisées injectées avant les prompts |
+| `disableOcr` | `boolean` | `false` | Désactiver le fallback OCR — requis sur Vercel/Lambda |
+| `maxConcurrency` | `number` | `undefined` | Limiter les appels parallèles (utile pour les APIs avec rate limiting) |
+| `onProgress` | `(section, success) => void` | — | Appelé après chaque extraction de section |
+| `ocrLanguage` | `string` | `'eng'` | Code de langue Tesseract pour les CVs non-anglophones (ex: `'fra'`, `'eng+fra'`) |
+| `abortSignal` | `AbortSignal` | — | Signal d'annulation standard |
+
+**Sections par défaut** (quand `sections` n'est pas spécifié) :
+
+```
+basics, work, education, skills, languages, projects, certificates, volunteer
+```
+
+**Toutes les sections disponibles :**
+
+```
+basics, work, education, skills, languages, projects,
+awards, certificates, publications, volunteer, interests, references
+```
+
+### Valeur de retour
+
+**`Promise<ResumeIntelResult>`**
+
+```typescript
+interface ResumeIntelResult {
+  data: JsonResume
+  meta: ExtractionMeta
+}
+
+interface ExtractionMeta {
+  durationMs: number
+  retryCount: number
+  ocrFallback: boolean
+  layoutStrategy: 'spatial' | 'linear'
+  pageCount: number
+  sectionsRequested: string[]
+  tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+  sectionResults?: Array<{ section: string; success: boolean; retryCount: number; error: string | null }>
+}
+```
+
+### Rate limiting avec `maxConcurrency`
+
+```typescript
+// Limiter à 3 appels parallèles — évite les 429 sur le tier gratuit DeepSeek
+const result = await parseResume(buffer, {
+  model,
+  maxConcurrency: 3,
+})
+```
+
+### Suivi de progression avec `onProgress`
+
+```typescript
+const result = await parseResume(buffer, {
+  model,
+  onProgress: (section, success) => {
+    console.log(`${section}: ${success ? 'ok' : 'echec'}`)
+  },
+})
+```
+
+### CVs non-anglophones avec `ocrLanguage`
+
+```typescript
+// CV français scanné
+const result = await parseResume(buffer, { model, ocrLanguage: 'fra' })
+
+// Mixte anglais + français
+const result = await parseResume(buffer, { model, ocrLanguage: 'eng+fra' })
+```
+
+---
+
+## `streamResume(input, options)`
+
+Version AsyncGenerator de `parseResume()`. Yield des événements au fur et à mesure que chaque section est extraite.
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+
+for await (const event of streamResume(buffer, { model })) {
+  if (event.type === 'section') updateUI(event.section, event.data)
+  if (event.type === 'error')   console.warn(event.section, event.error)
+  if (event.type === 'done')    setResult(event.result)
+}
+```
+
+Accepte les mêmes options que `parseResume()`. Voir la page [Streaming](/docs/resume-intel/v0.2.0/fr/streaming) pour la documentation complète.
+
+---
+
+## `normalizeDate` / `cleanUrl`
+
+Fonctions utilitaires exposées pour les cas d'usage avancés.
+
+```typescript
+import { normalizeDate, cleanUrl } from '@edwinfom/resume-intel'
+
+normalizeDate('2024-01-01')  // → '2024'
+normalizeDate('2024-08-01')  // → '2024-08'
+normalizeDate('Présent')     // → null (le champ doit être omis)
+
+cleanUrl('https://github.com/user') // → 'https://github.com/user'
+cleanUrl('https://vibe-')           // → null (tronquée)
+```
+
+---
+
+## Classes d'erreur
+
+### `ResumeExtractionError`
+
+Levée quand le LLM échoue à produire des données valides après toutes les tentatives.
+
+```typescript
+import { ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error(error.message)
+    console.error(error.cause)
+  }
+}
+```
+
+### `OcrNotEnabledError`
+
+Levée quand un PDF scanné est détecté mais que l'OCR est désactivé ou échoue.
+
+```typescript
+import { OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR échoué:', error.message)
+  }
+}
+```
+
+---
+
+## Types TypeScript
+
+```typescript
+import type {
+  ResumeIntelOptions,
+  ResumeIntelResult,
+  ExtractionMeta,
+  SectionExtractionResult,
+  TokenUsage,
+  JsonResume,
+  ResumeSectionKey,
+  StreamResumeEvent,
+} from '@edwinfom/resume-intel'
+```

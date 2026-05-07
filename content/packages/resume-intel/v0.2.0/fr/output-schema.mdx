@@ -1,0 +1,79 @@
+---
+title: Schéma de sortie
+description: Le schéma de sortie JSON Resume v1 — tous les champs, types et exemples.
+---
+
+# Schéma de sortie
+
+`resume-intel` produit des données conformes à la [spécification JSON Resume v1](https://jsonresume.org/schema/) — un standard ouvert utilisé par des centaines d'outils, générateurs de portfolios et plateformes ATS.
+
+## Exemple de schéma complet
+
+```json
+{
+  "basics": {
+    "name": "Jean Dupont",
+    "label": "Ingénieur Logiciel Senior",
+    "email": "jean@exemple.com",
+    "phone": "+33 6 12 34 56 78",
+    "url": "https://jeandupont.dev",
+    "summary": "10 ans à construire des systèmes distribués à grande échelle...",
+    "location": {
+      "city": "Paris",
+      "region": "Île-de-France",
+      "countryCode": "FR"
+    },
+    "profiles": [
+      { "network": "LinkedIn", "username": "jeandupont", "url": "https://linkedin.com/in/jeandupont" },
+      { "network": "GitHub", "username": "jeandupont", "url": "https://github.com/jeandupont" }
+    ]
+  },
+  "work": [
+    {
+      "name": "Acme Corp",
+      "position": "Ingénieur Principal",
+      "startDate": "2021-03",
+      "highlights": [
+        "Migration du monolithe vers les microservices, réduction de la latence p99 de 60%",
+        "Management d'une équipe de 8 ingénieurs sur 3 fuseaux horaires"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "École Polytechnique",
+      "area": "Informatique",
+      "studyType": "Ingénieur",
+      "startDate": "2010",
+      "endDate": "2014"
+    }
+  ],
+  "skills": [
+    { "name": "Backend", "keywords": ["Node.js", "TypeScript", "Go"] },
+    { "name": "Infrastructure", "keywords": ["Kubernetes", "Terraform", "AWS"] }
+  ],
+  "languages": [
+    { "language": "Français", "fluency": "Natif" },
+    { "language": "Anglais", "fluency": "Courant" }
+  ]
+}
+```
+
+## Format des dates
+
+Les dates suivent la convention JSON Resume :
+- `YYYY-MM` quand le mois est disponible (ex: `"2021-03"`)
+- `YYYY` quand seule l'année est connue (ex: `"2014"`)
+- `endDate` est omis pour les postes actuels
+
+## Tous les champs sont optionnels
+
+Chaque champ du schéma est optionnel. Si un champ n'est pas présent dans le CV source, il est omis de la sortie — jamais défini à `null` ou une chaîne vide.
+
+## Interopérabilité
+
+Parce que la sortie est conforme à JSON Resume v1, elle fonctionne directement avec :
+- [jsonresume.org](https://jsonresume.org) — rendu de CV en ligne
+- [resume-cli](https://github.com/jsonresume/resume-cli) — rendu en ligne de commande
+- Des centaines de thèmes et templates communautaires
+- Les plateformes ATS qui supportent le standard JSON Resume
