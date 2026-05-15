@@ -1,0 +1,209 @@
+---
+title: Référence API
+description: Référence API complète pour @edwinfom/resume-intel v0.2.1 — parseResume, streamResume, redaction PII, options, types de retour, schémas exportés et fonctions utilitaires.
+---
+
+# Référence API
+
+## `parseResume(input, options)`
+
+La fonction principale. Accepte un buffer PDF et retourne des données de CV structurées.
+
+### Paramètres
+
+**`input`** — `Buffer | ArrayBuffer | Uint8Array`
+
+Le contenu du fichier PDF. Les trois types de buffer sont acceptés.
+
+**`options`** — `ResumeIntelOptions`
+
+| Option | Type | Défaut | Description |
+|---|---|---|---|
+| `model` | `LanguageModel` | requis | Tout modèle compatible Vercel AI SDK |
+| `maxRetries` | `number` | `3` | Tentatives max d'auto-correction par section |
+| `layoutStrategy` | `'spatial' \| 'linear'` | `'spatial'` | Stratégie d'extraction du texte PDF |
+| `useTaskDecomposition` | `boolean` | `true` | Extractions parallèles par section |
+| `sections` | `ResumeSectionKey[]` | voir ci-dessous | Sections à extraire |
+| `outputSchema` | `ZodType` | JSON Resume v1 | Schéma Zod personnalisé pour remplacer la sortie par défaut |
+| `systemPromptPrefix` | `string` | `''` | Instructions personnalisées injectées avant les prompts d'extraction |
+| `disableOcr` | `boolean` | `false` | Désactiver le fallback OCR — requis sur Vercel/Lambda |
+| `maxConcurrency` | `number` | `undefined` | Limiter les appels de sections parallèles |
+| `onProgress` | `(section, success) => void` | — | Appelé après chaque extraction de section |
+| `ocrLanguage` | `string` | `'eng'` | Code de langue Tesseract pour les CVs non-anglais (ex. `'fra'`) |
+| `abortSignal` | `AbortSignal` | — | Signal d'annulation standard |
+| `redactPii` | `boolean` | `false` | Masquer les PII avant l'envoi au LLM, réinjecter après l'extraction |
+
+**Sections par défaut** (quand `sections` n'est pas spécifié) :
+
+```
+basics, work, education, skills, languages, projects, certificates, volunteer
+```
+
+**Toutes les sections disponibles :**
+
+```
+basics, work, education, skills, languages, projects,
+awards, certificates, publications, volunteer, interests, references
+```
+
+### Valeur de retour
+
+**`Promise<ResumeIntelResult>`**
+
+```typescript
+interface ResumeIntelResult {
+  data: JsonResume      // Objet compatible JSON Resume v1 (ou forme outputSchema personnalisée)
+  meta: ExtractionMeta
+}
+
+interface ExtractionMeta {
+  durationMs: number
+  retryCount: number
+  ocrFallback: boolean
+  layoutStrategy: 'spatial' | 'linear'
+  pageCount: number
+  sectionsRequested: string[]
+  tokenUsage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  sectionResults?: Array<{
+    section: string
+    success: boolean
+    retryCount: number
+    error: string | null
+    confidenceScore?: number  // 0.0–1.0 — ajouté en v0.2.1
+  }>
+}
+```
+
+### Redaction PII
+
+```typescript
+const result = await parseResume(buffer, {
+  model,
+  redactPii: true,
+})
+// Le LLM ne voit jamais "jean.dupont@gmail.com" — il traite "__PII_EMAIL_0__"
+// result.data.basics.email contient toujours "jean.dupont@gmail.com"
+```
+
+Voir la page [Redaction PII](/docs/resume-intel/v0.2.1/fr/pii-redaction) pour la documentation complète.
+
+### Scores de confiance
+
+```typescript
+const result = await parseResume(buffer, { model })
+for (const s of result.meta.sectionResults ?? []) {
+  console.log(`${s.section}: ${s.confidenceScore}`)
+  // basics: 0.87  work: 1.00  skills: 1.00
+}
+```
+
+### Sélection des sections
+
+```typescript
+// Extraire uniquement ce dont vous avez besoin — économise des tokens et du temps
+const result = await parseResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],
+})
+
+// Tout extraire
+import { ALL_SECTIONS } from '@edwinfom/resume-intel'
+const result = await parseResume(buffer, {
+  model,
+  sections: [...ALL_SECTIONS],
+})
+```
+
+---
+
+## `streamResume(input, options)`
+
+Version AsyncGenerator de `parseResume()`. Émet des événements au fur et à mesure que chaque section est extraite.
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+
+for await (const event of streamResume(buffer, { model })) {
+  if (event.type === 'section') updateUI(event.section, event.data)
+  if (event.type === 'error')   console.warn(event.section, event.error)
+  if (event.type === 'done')    setResult(event.result)
+}
+```
+
+Accepte les mêmes options que `parseResume()`, y compris `redactPii`. Voir la page [Streaming](/docs/resume-intel/v0.2.1/fr/streaming) pour la documentation complète.
+
+---
+
+## `redactPii` / `reinjectPii` / `describePiiRedaction`
+
+Fonctions utilitaires pour les pipelines de redaction personnalisés.
+
+```typescript
+import { redactPii, reinjectPii, describePiiRedaction } from '@edwinfom/resume-intel'
+
+const { redactedText, placeholders } = redactPii(texteCV)
+console.log(describePiiRedaction({ redactedText, placeholders }))
+// "2 emails, 3 urls, 1 phone"
+
+const restored = reinjectPii(extractedData, placeholders)
+```
+
+Voir la page [Redaction PII](/docs/resume-intel/v0.2.1/fr/pii-redaction) pour la documentation complète.
+
+---
+
+## Classes d'erreur
+
+### `ResumeExtractionError`
+
+Levée quand le LLM échoue à produire des données valides après toutes les tentatives de retry.
+
+```typescript
+import { ResumeExtractionError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof ResumeExtractionError) {
+    console.error(error.message)
+    console.error(error.cause)
+  }
+}
+```
+
+### `OcrNotEnabledError`
+
+Levée quand un PDF scanné est détecté mais que l'OCR est désactivé ou échoue.
+
+```typescript
+import { OcrNotEnabledError } from '@edwinfom/resume-intel'
+
+try {
+  const result = await parseResume(pdfBuffer, { model })
+} catch (error) {
+  if (error instanceof OcrNotEnabledError) {
+    console.error('OCR échoué :', error.message)
+  }
+}
+```
+
+---
+
+## Types TypeScript
+
+```typescript
+import type {
+  ResumeIntelOptions,
+  ResumeIntelResult,
+  ExtractionMeta,
+  SectionExtractionResult,
+  TokenUsage,
+  JsonResume,
+  ResumeSectionKey,
+  StreamResumeEvent,
+} from '@edwinfom/resume-intel'
+```

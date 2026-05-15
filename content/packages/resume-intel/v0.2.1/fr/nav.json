@@ -1,0 +1,40 @@
+[
+  {
+    "title": "Démarrage",
+    "items": [
+      { "title": "Introduction", "slug": "introduction" },
+      { "title": "Installation", "slug": "installation" },
+      { "title": "Démarrage rapide", "slug": "quick-start" }
+    ]
+  },
+  {
+    "title": "Pipeline principal",
+    "items": [
+      { "title": "Extraction spatiale", "slug": "spatial-extraction" },
+      { "title": "Fallback OCR", "slug": "ocr-fallback" },
+      { "title": "Décomposition de tâches", "slug": "task-decomposition" },
+      { "title": "Validation JSON", "slug": "json-validation" }
+    ]
+  },
+  {
+    "title": "Fournisseurs de modèles",
+    "items": [
+      { "title": "DeepSeek", "slug": "provider-deepseek" },
+      { "title": "OpenAI", "slug": "provider-openai" },
+      { "title": "Anthropic", "slug": "provider-anthropic" },
+      { "title": "Ollama (local)", "slug": "provider-ollama" }
+    ]
+  },
+  {
+    "title": "Référence",
+    "items": [
+      { "title": "Référence API", "slug": "api-reference" },
+      { "title": "Streaming", "slug": "streaming" },
+      { "title": "Redaction PII", "slug": "pii-redaction" },
+      { "title": "Schéma de sortie", "slug": "output-schema" },
+      { "title": "CLI", "slug": "cli" },
+      { "title": "Gestion des erreurs", "slug": "error-handling" },
+      { "title": "Changelog", "slug": "changelog" }
+    ]
+  }
+]

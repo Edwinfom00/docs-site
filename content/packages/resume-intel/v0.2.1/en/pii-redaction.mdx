@@ -1,0 +1,114 @@
+---
+title: PII Redaction
+description: Redact personally identifiable information from resume text before sending to the LLM. Real values are reinjected after extraction. GDPR-friendly.
+---
+
+# PII Redaction
+
+The `redactPii` option replaces personally identifiable information in the resume text with deterministic placeholders before the LLM call. After extraction, the real values are reinjected into the structured output.
+
+The final result is identical to a non-redacted run — the LLM simply never sees the raw personal data.
+
+## Why this matters
+
+When you send a resume to a third-party LLM API (OpenAI, DeepSeek, Anthropic), the raw text — including email addresses, phone numbers, and home addresses — leaves your infrastructure. Depending on your jurisdiction and data processing agreements, this may conflict with GDPR, CCPA, or internal data policies.
+
+`redactPii: true` ensures that only anonymized text is transmitted to the LLM.
+
+## Basic usage
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+const result = await parseResume(buffer, {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+  redactPii: true,
+})
+
+// The LLM processed "__PII_EMAIL_0__" instead of "john.doe@gmail.com"
+// The output contains the real value
+console.log(result.data.basics?.email) // "john.doe@gmail.com"
+```
+
+Works identically with `streamResume()`:
+
+```typescript
+for await (const event of streamResume(buffer, { model, redactPii: true })) {
+  if (event.type === 'section') {
+    // event.data already has real values reinjected
+  }
+}
+```
+
+## What gets redacted
+
+| Category | Examples |
+|---|---|
+| Email addresses | `john.doe@gmail.com`, `contact@company.com` |
+| Phone numbers | `+1 (555) 123-4567`, `+33 6 12 34 56 78`, `555-123-4567` |
+| URLs | `https://johndoe.dev`, `https://linkedin.com/in/johndoe`, `https://github.com/user` |
+| Physical addresses | `123 Main Street`, `45 Rue de la Paix` |
+
+## Placeholder format
+
+Placeholders are deterministic and type-tagged:
+
+```
+john.doe@gmail.com  →  __PII_EMAIL_0__
+contact@acme.com    →  __PII_EMAIL_1__
++1 (555) 123-4567   →  __PII_PHONE_2__
+https://johndoe.dev →  __PII_URL_3__
+123 Main Street     →  __PII_ADDRESS_4__
+```
+
+The index is a counter that increments across all redacted values in the document. This makes reinjection reliable — each placeholder maps to exactly one original value.
+
+## Advanced: custom redaction pipeline
+
+The redaction utilities are exported for use in custom pipelines:
+
+```typescript
+import { redactPii, reinjectPii, describePiiRedaction } from '@edwinfom/resume-intel'
+
+// Step 1: redact
+const { redactedText, placeholders } = redactPii(rawResumeText)
+
+console.log(describePiiRedaction({ redactedText, placeholders }))
+// "2 emails, 3 urls, 1 phone"
+
+// Step 2: send redactedText to your own LLM pipeline
+const extracted = await myCustomExtractor(redactedText)
+
+// Step 3: reinject
+const restored = reinjectPii(extracted, placeholders)
+```
+
+## Limitations
+
+- **Unusual formats** — phone numbers in non-standard formats (e.g. written out as "five five five...") are not redacted.
+- **Embedded in sentences** — PII embedded mid-sentence without clear delimiters may not be detected.
+- **Custom schemas** — when using `outputSchema`, reinjection still works but only on string fields that contain placeholders.
+- **OCR text** — OCR output may alter the formatting of phone numbers or emails, reducing detection accuracy. In this case, redaction is best-effort.
+
+For high-stakes GDPR compliance, combine `redactPii: true` with a review step on the extracted output.
+
+## Confidence scores
+
+When `redactPii` is active, the `confidenceScore` in `sectionResults` reflects whether the section extracted correctly despite the redacted input:
+
+```typescript
+const result = await parseResume(buffer, {
+  model,
+  redactPii: true,
+})
+
+for (const s of result.meta.sectionResults ?? []) {
+  console.log(`${s.section}: confidence=${s.confidenceScore}`)
+  // basics:   confidence=0.87
+  // work:     confidence=1.00
+  // skills:   confidence=1.00
+}
+```
+
+A score below 0.7 on `basics` with `redactPii: true` may indicate that the redaction disrupted the extraction. In that case, try running without `redactPii` to compare.

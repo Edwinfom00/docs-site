@@ -1,0 +1,114 @@
+---
+title: Redaction PII
+description: Masquez les données personnelles du texte du CV avant l'envoi au LLM. Les vraies valeurs sont réinjectées après l'extraction. Compatible RGPD.
+---
+
+# Redaction PII
+
+L'option `redactPii` remplace les données personnelles identifiables dans le texte du CV par des placeholders déterministes avant l'appel LLM. Après l'extraction, les vraies valeurs sont réinjectées dans la sortie structurée.
+
+Le résultat final est identique à une extraction sans redaction — le LLM ne voit simplement jamais les données personnelles brutes.
+
+## Pourquoi c'est important
+
+Quand vous envoyez un CV à une API LLM tierce (OpenAI, DeepSeek, Anthropic), le texte brut — incluant les adresses email, numéros de téléphone et adresses postales — quitte votre infrastructure. Selon votre juridiction et vos accords de traitement des données, cela peut entrer en conflit avec le RGPD, le CCPA ou les politiques internes.
+
+`redactPii: true` garantit que seul du texte anonymisé est transmis au LLM.
+
+## Utilisation de base
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+const result = await parseResume(buffer, {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+  redactPii: true,
+})
+
+// Le LLM a traité "__PII_EMAIL_0__" au lieu de "jean.dupont@gmail.com"
+// La sortie contient la vraie valeur
+console.log(result.data.basics?.email) // "jean.dupont@gmail.com"
+```
+
+Fonctionne de manière identique avec `streamResume()` :
+
+```typescript
+for await (const event of streamResume(buffer, { model, redactPii: true })) {
+  if (event.type === 'section') {
+    // event.data contient déjà les vraies valeurs réinjectées
+  }
+}
+```
+
+## Ce qui est masqué
+
+| Catégorie | Exemples |
+|---|---|
+| Adresses email | `jean.dupont@gmail.com`, `contact@entreprise.fr` |
+| Numéros de téléphone | `+33 6 12 34 56 78`, `+1 (555) 123-4567`, `06 12 34 56 78` |
+| URLs | `https://jeandupont.dev`, `https://linkedin.com/in/jeandupont`, `https://github.com/user` |
+| Adresses postales | `45 Rue de la Paix`, `123 Main Street` |
+
+## Format des placeholders
+
+Les placeholders sont déterministes et typés :
+
+```
+jean.dupont@gmail.com  →  __PII_EMAIL_0__
+contact@acme.fr        →  __PII_EMAIL_1__
++33 6 12 34 56 78      →  __PII_PHONE_2__
+https://jeandupont.dev →  __PII_URL_3__
+45 Rue de la Paix      →  __PII_ADDRESS_4__
+```
+
+L'index est un compteur qui s'incrémente sur toutes les valeurs masquées du document. Cela rend la réinjection fiable — chaque placeholder correspond exactement à une valeur originale.
+
+## Avancé : pipeline de redaction personnalisé
+
+Les utilitaires de redaction sont exportés pour une utilisation dans des pipelines personnalisés :
+
+```typescript
+import { redactPii, reinjectPii, describePiiRedaction } from '@edwinfom/resume-intel'
+
+// Étape 1 : masquer
+const { redactedText, placeholders } = redactPii(texteCV)
+
+console.log(describePiiRedaction({ redactedText, placeholders }))
+// "2 emails, 3 urls, 1 phone"
+
+// Étape 2 : envoyer redactedText à votre propre pipeline LLM
+const extracted = await monExtracteurPersonnalise(redactedText)
+
+// Étape 3 : réinjecter
+const restored = reinjectPii(extracted, placeholders)
+```
+
+## Limitations
+
+- **Formats inhabituels** — les numéros de téléphone dans des formats non standard (ex. écrits en toutes lettres) ne sont pas masqués.
+- **Intégrés dans des phrases** — les données PII intégrées au milieu d'une phrase sans délimiteurs clairs peuvent ne pas être détectées.
+- **Schémas personnalisés** — avec `outputSchema`, la réinjection fonctionne toujours mais uniquement sur les champs string contenant des placeholders.
+- **Texte OCR** — la sortie OCR peut altérer le format des numéros de téléphone ou emails, réduisant la précision de détection. Dans ce cas, la redaction est au mieux-effort.
+
+Pour une conformité RGPD à enjeux élevés, combinez `redactPii: true` avec une étape de vérification sur la sortie extraite.
+
+## Scores de confiance
+
+Quand `redactPii` est actif, le `confidenceScore` dans `sectionResults` reflète si la section a été extraite correctement malgré l'entrée masquée :
+
+```typescript
+const result = await parseResume(buffer, {
+  model,
+  redactPii: true,
+})
+
+for (const s of result.meta.sectionResults ?? []) {
+  console.log(`${s.section}: confiance=${s.confidenceScore}`)
+  // basics:   confiance=0.87
+  // work:     confiance=1.00
+  // skills:   confiance=1.00
+}
+```
+
+Un score inférieur à 0.7 sur `basics` avec `redactPii: true` peut indiquer que la redaction a perturbé l'extraction. Dans ce cas, essayez sans `redactPii` pour comparer.

@@ -1,0 +1,53 @@
+---
+title: DeepSeek
+description: Utiliser @edwinfom/resume-intel avec DeepSeek V3 — le fournisseur recommandé pour une extraction de CV économique.
+---
+
+# DeepSeek
+
+DeepSeek V3 (`deepseek-chat`) est le fournisseur par défaut recommandé pour `resume-intel`. Il offre le meilleur rapport coût/performance pour les tâches d'extraction structurée.
+
+## Configuration
+
+```bash
+npm install @ai-sdk/deepseek
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+const model = createDeepSeek({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+})('deepseek-chat')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## DeepSeek V3 vs R1
+
+| Modèle | Vitesse | Coût | Utiliser pour |
+|---|---|---|---|
+| `deepseek-chat` (V3) | Rapide | ~0,27$/M tokens | Extraction de CV — **recommandé** |
+| `deepseek-reasoner` (R1) | Lent | ~2,19$/M tokens | À éviter pour l'extraction |
+
+**Pourquoi éviter R1 pour l'extraction ?**
+
+DeepSeek R1 utilise le raisonnement en chaîne de pensée et génère des milliers de tokens de "réflexion" internes avant de produire une sortie. Pour l'extraction structurée, cela ajoute du coût et de la latence sans améliorer la précision. Il souffre également d'"écho de schéma" sur les modèles de petite taille — générant une structure syntaxiquement parfaite mais vide.
+
+Restez sur V3 (`deepseek-chat`) pour le parsing de CV.
+
+## Important : DeepSeek ne peut pas lire les PDFs bruts
+
+DeepSeek V3 est un modèle texte uniquement. Il n'a aucune capacité native de lecture PDF. Si vous essayez de soumettre un buffer PDF brut directement à l'API DeepSeek, cela échouera avec "No text extracted" ou des erreurs similaires.
+
+`resume-intel` gère cela automatiquement — il extrait et nettoie le texte avant de l'envoyer à DeepSeek. Vous n'avez jamais à vous en préoccuper.
+
+## Estimation des coûts
+
+Pour un CV typique de 2 pages avec décomposition par section :
+
+- Tokens de prompt : ~1 200 (texte complet du CV × 6 sections)
+- Tokens de complétion : ~450 (JSON structuré par section)
+- Total : ~1 650 tokens
+- Coût à 0,27$/M : **~0,00045$ par CV**

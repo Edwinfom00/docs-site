@@ -1,0 +1,36 @@
+---
+title: OpenAI
+description: Utiliser @edwinfom/resume-intel avec GPT-4o-mini et GPT-4o.
+---
+
+# OpenAI
+
+## Configuration
+
+```bash
+npm install @ai-sdk/openai
+```
+
+```typescript
+import { parseResume } from '@edwinfom/resume-intel'
+import { createOpenAI } from '@ai-sdk/openai'
+
+const model = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})('gpt-4o-mini')
+
+const result = await parseResume(pdfBuffer, { model })
+```
+
+## Modèles recommandés
+
+| Modèle | Vitesse | Coût | Idéal pour |
+|---|---|---|---|
+| `gpt-4o-mini` | Rapide | Faible | La plupart des CVs — bon équilibre |
+| `gpt-4o` | Moyen | Plus élevé | Formats complexes ou non standard |
+
+`gpt-4o-mini` est le modèle OpenAI recommandé pour l'extraction de CV. Il respecte `temperature: 0` de manière fiable et produit une sortie structurée cohérente.
+
+## Mode JSON natif
+
+OpenAI supporte le mode JSON natif que `resume-intel` utilise automatiquement via `generateObject`. Cela signifie qu'OpenAI retournera toujours du JSON valide — la phase de réparation est rarement nécessaire.

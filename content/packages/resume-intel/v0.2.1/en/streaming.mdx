@@ -1,0 +1,126 @@
+---
+title: Streaming
+description: streamResume() — AsyncGenerator that yields events as each section is extracted. Update your UI progressively instead of waiting for the full result.
+---
+
+# Streaming
+
+`streamResume()` is an AsyncGenerator that yields events as each section is extracted. Instead of waiting 15-20 seconds for the full result, your UI can update section by section.
+
+## Basic usage
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+for await (const event of streamResume(readFileSync('./resume.pdf'), {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})) {
+  if (event.type === 'section') {
+    console.log(`${event.section}: extracted`)
+    updateUI(event.section, event.data)
+  }
+
+  if (event.type === 'error') {
+    console.warn(`${event.section}: failed — ${event.error}`)
+  }
+
+  if (event.type === 'done') {
+    console.log('Complete:', event.result.data.basics?.name)
+    console.log('Duration:', event.result.meta.durationMs, 'ms')
+  }
+}
+```
+
+## Event types
+
+```typescript
+type StreamResumeEvent =
+  | { type: 'section'; section: string; data: unknown; success: boolean }
+  | { type: 'error';   section: string; error: string }
+  | { type: 'done';    result: ResumeIntelResult }
+```
+
+| Event | When | Fields |
+|---|---|---|
+| `section` | After each section is extracted and normalized | `section`, `data`, `success` |
+| `error` | When a section fails after all retries | `section`, `error` |
+| `done` | When all sections are complete | `result` (full `ResumeIntelResult`) |
+
+The `done` event always fires last, even if some sections failed. The `result` contains all successfully extracted sections.
+
+## Next.js App Router example
+
+```typescript
+// app/api/parse-resume/route.ts
+import { streamResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+export async function POST(req: Request) {
+  const formData = await req.formData()
+  const file = formData.get('file') as File
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  const model = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY! })('deepseek-chat')
+
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      for await (const event of streamResume(buffer, { model, disableOcr: true })) {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+        if (event.type === 'done') controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'application/x-ndjson' },
+  })
+}
+```
+
+```typescript
+// Client-side consumption
+const response = await fetch('/api/parse-resume', { method: 'POST', body: formData })
+const reader = response.body!.getReader()
+const decoder = new TextDecoder()
+
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+
+  for (const line of decoder.decode(value).split('\n').filter(Boolean)) {
+    const event = JSON.parse(line)
+    if (event.type === 'section') updateUI(event.section, event.data)
+    if (event.type === 'done') setComplete(event.result)
+  }
+}
+```
+
+## Options
+
+`streamResume()` accepts the same options as `parseResume()`:
+
+```typescript
+for await (const event of streamResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],  // extract only what you need
+  maxConcurrency: 3,                           // limit parallel calls
+  disableOcr: true,                            // required on Vercel/Lambda
+  ocrLanguage: 'fra',                          // for non-English CVs
+})) { ... }
+```
+
+## Difference from `parseResume()`
+
+| | `parseResume()` | `streamResume()` |
+|---|---|---|
+| Return type | `Promise<ResumeIntelResult>` | `AsyncGenerator<StreamResumeEvent>` |
+| UI updates | After full completion | After each section |
+| Error handling | Throws on total failure | Yields `error` events per section |
+| Post-processing | Applied before return | Applied before `done` event |
+| Options | Same | Same |
+
+Both functions produce identical final results. `streamResume()` is strictly additive — it adds progressive updates without changing the output format.

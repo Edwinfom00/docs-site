@@ -12,33 +12,34 @@ interface SearchResult {
 
 // Static search index — in a real app this would be generated at build time
 const SEARCH_INDEX_EN: SearchResult[] = [
+  // ── @edwinfom/resume-intel v0.2.1 ────────────────────────────────────────
+  { title: 'Introduction', href: '/docs/resume-intel/v0.2.1/en/introduction', section: 'resume-intel · Getting Started', description: 'LLM-first resume parsing — v0.2.1 with PII redaction' },
+  { title: 'Installation', href: '/docs/resume-intel/v0.2.1/en/installation', section: 'resume-intel · Getting Started', description: 'Install with npm or pnpm, choose your AI provider' },
+  { title: 'Quick Start', href: '/docs/resume-intel/v0.2.1/en/quick-start', section: 'resume-intel · Getting Started', description: 'Parse your first resume PDF in under 5 minutes' },
+  { title: 'Spatial Extraction', href: '/docs/resume-intel/v0.2.1/en/spatial-extraction', section: 'resume-intel · Core Pipeline', description: 'Bounding box algorithm for multi-column layouts' },
+  { title: 'OCR Fallback', href: '/docs/resume-intel/v0.2.1/en/ocr-fallback', section: 'resume-intel · Core Pipeline', description: 'Automatic OCR for scanned PDFs via Tesseract.js' },
+  { title: 'Task Decomposition', href: '/docs/resume-intel/v0.2.1/en/task-decomposition', section: 'resume-intel · Core Pipeline', description: 'Parallel per-section LLM extraction — 15 sections' },
+  { title: 'JSON Validation', href: '/docs/resume-intel/v0.2.1/en/json-validation', section: 'resume-intel · Core Pipeline', description: 'jsonrepair + Zod + self-correcting retry loop' },
+  { title: 'DeepSeek', href: '/docs/resume-intel/v0.2.1/en/provider-deepseek', section: 'resume-intel · Providers', description: 'Best cost/performance ratio for extraction' },
+  { title: 'OpenAI', href: '/docs/resume-intel/v0.2.1/en/provider-openai', section: 'resume-intel · Providers', description: 'GPT-4o-mini and GPT-4o' },
+  { title: 'Anthropic', href: '/docs/resume-intel/v0.2.1/en/provider-anthropic', section: 'resume-intel · Providers', description: 'Claude 3.5 Haiku and Sonnet' },
+  { title: 'Ollama (Local)', href: '/docs/resume-intel/v0.2.1/en/provider-ollama', section: 'resume-intel · Providers', description: 'Run locally, no API key, no data leaves your machine' },
+  { title: 'API Reference', href: '/docs/resume-intel/v0.2.1/en/api-reference', section: 'resume-intel · Reference', description: 'parseResume(), streamResume(), redactPii, options, return types' },
+  { title: 'Streaming', href: '/docs/resume-intel/v0.2.1/en/streaming', section: 'resume-intel · Reference', description: 'streamResume() — progressive section-by-section updates' },
+  { title: 'PII Redaction', href: '/docs/resume-intel/v0.2.1/en/pii-redaction', section: 'resume-intel · Reference', description: 'Redact email, phone, addresses before LLM — GDPR-friendly' },
+  { title: 'Output Schema', href: '/docs/resume-intel/v0.2.1/en/output-schema', section: 'resume-intel · Reference', description: 'JSON Resume v1 specification' },
+  { title: 'CLI', href: '/docs/resume-intel/v0.2.1/en/cli', section: 'resume-intel · Reference', description: 'resume-intel parse <file.pdf> — parse from the terminal' },
+  { title: 'Error Handling', href: '/docs/resume-intel/v0.2.1/en/error-handling', section: 'resume-intel · Reference', description: 'ResumeExtractionError, OcrNotEnabledError' },
+  { title: 'Changelog', href: '/docs/resume-intel/v0.2.1/en/changelog', section: 'resume-intel · Reference', description: 'Release history — v0.2.1, v0.2.0, v0.1.3, v0.1.2, v0.1.0' },
   // ── @edwinfom/resume-intel v0.2.0 ────────────────────────────────────────
-  { title: 'Introduction', href: '/docs/resume-intel/v0.2.0/en/introduction', section: 'resume-intel · Getting Started', description: 'LLM-first resume parsing infrastructure' },
-  { title: 'Installation', href: '/docs/resume-intel/v0.2.0/en/installation', section: 'resume-intel · Getting Started', description: 'Install with npm or pnpm, choose your AI provider' },
-  { title: 'Quick Start', href: '/docs/resume-intel/v0.2.0/en/quick-start', section: 'resume-intel · Getting Started', description: 'Parse your first resume PDF in under 5 minutes' },
-  { title: 'Spatial Extraction', href: '/docs/resume-intel/v0.2.0/en/spatial-extraction', section: 'resume-intel · Core Pipeline', description: 'Bounding box algorithm for multi-column layouts' },
-  { title: 'OCR Fallback', href: '/docs/resume-intel/v0.2.0/en/ocr-fallback', section: 'resume-intel · Core Pipeline', description: 'Automatic OCR for scanned PDFs via Tesseract.js' },
-  { title: 'Task Decomposition', href: '/docs/resume-intel/v0.2.0/en/task-decomposition', section: 'resume-intel · Core Pipeline', description: 'Parallel per-section LLM extraction — 15 sections' },
-  { title: 'JSON Validation', href: '/docs/resume-intel/v0.2.0/en/json-validation', section: 'resume-intel · Core Pipeline', description: 'jsonrepair + Zod + self-correcting retry loop' },
-  { title: 'DeepSeek', href: '/docs/resume-intel/v0.2.0/en/provider-deepseek', section: 'resume-intel · Providers', description: 'Best cost/performance ratio for extraction' },
-  { title: 'OpenAI', href: '/docs/resume-intel/v0.2.0/en/provider-openai', section: 'resume-intel · Providers', description: 'GPT-4o-mini and GPT-4o' },
-  { title: 'Anthropic', href: '/docs/resume-intel/v0.2.0/en/provider-anthropic', section: 'resume-intel · Providers', description: 'Claude 3.5 Haiku and Sonnet' },
-  { title: 'Ollama (Local)', href: '/docs/resume-intel/v0.2.0/en/provider-ollama', section: 'resume-intel · Providers', description: 'Run locally, no API key, no data leaves your machine' },
-  { title: 'API Reference', href: '/docs/resume-intel/v0.2.0/en/api-reference', section: 'resume-intel · Reference', description: 'parseResume(), streamResume(), options, return types' },
-  { title: 'Streaming', href: '/docs/resume-intel/v0.2.0/en/streaming', section: 'resume-intel · Reference', description: 'streamResume() — progressive section-by-section updates' },
-  { title: 'Output Schema', href: '/docs/resume-intel/v0.2.0/en/output-schema', section: 'resume-intel · Reference', description: 'JSON Resume v1 specification' },
-  { title: 'CLI', href: '/docs/resume-intel/v0.2.0/en/cli', section: 'resume-intel · Reference', description: 'resume-intel parse <file.pdf> — parse from the terminal' },
-  { title: 'Error Handling', href: '/docs/resume-intel/v0.2.0/en/error-handling', section: 'resume-intel · Reference', description: 'ResumeExtractionError, OcrNotEnabledError' },
-  { title: 'Changelog', href: '/docs/resume-intel/v0.2.0/en/changelog', section: 'resume-intel · Reference', description: 'Release history — v0.2.0, v0.1.3, v0.1.2, v0.1.0' },
+  { title: 'Introduction (v0.2.0)', href: '/docs/resume-intel/v0.2.0/en/introduction', section: 'resume-intel · v0.2.0', description: 'streamResume() streaming API' },
+  { title: 'Streaming (v0.2.0)', href: '/docs/resume-intel/v0.2.0/en/streaming', section: 'resume-intel · v0.2.0', description: 'streamResume() — progressive section-by-section updates' },
+  { title: 'Changelog (v0.2.0)', href: '/docs/resume-intel/v0.2.0/en/changelog', section: 'resume-intel · v0.2.0', description: 'Release notes' },
   // ── @edwinfom/resume-intel v0.1.3 ────────────────────────────────────────
   { title: 'Introduction (v0.1.3)', href: '/docs/resume-intel/v0.1.3/en/introduction', section: 'resume-intel · v0.1.3', description: 'Output normalizer, maxConcurrency, onProgress, ocrLanguage' },
   { title: 'Changelog (v0.1.3)', href: '/docs/resume-intel/v0.1.3/en/changelog', section: 'resume-intel · v0.1.3', description: 'Release notes' },
   // ── @edwinfom/resume-intel v0.1.0 ────────────────────────────────────────
   { title: 'Introduction (v0.1.0)', href: '/docs/resume-intel/v0.1.0/en/introduction', section: 'resume-intel · v0.1.0', description: 'Initial release' },
-  { title: 'Changelog (v0.1.0)', href: '/docs/resume-intel/v0.1.0/en/changelog', section: 'resume-intel · v0.1.0', description: 'Initial release notes' },
-  // ── @edwinfom/resume-intel v0.1.0 ────────────────────────────────────────
-  { title: 'Introduction (v0.1.0)', href: '/docs/resume-intel/v0.1.0/en/introduction', section: 'resume-intel · v0.1.0', description: 'Initial release' },
-  { title: 'Quick Start (v0.1.0)', href: '/docs/resume-intel/v0.1.0/en/quick-start', section: 'resume-intel · v0.1.0', description: 'Parse your first resume PDF' },
   { title: 'Changelog (v0.1.0)', href: '/docs/resume-intel/v0.1.0/en/changelog', section: 'resume-intel · v0.1.0', description: 'Initial release notes' },
   // ── @edwinfom/ai-guard v0.2.1 ────────────────────────────────────────────
   { title: 'Introduction', href: '/docs/ai-guard/v0.2.1/en/introduction', section: 'ai-guard · Getting Started', description: 'Overview of @edwinfom/ai-guard' },
@@ -71,30 +72,34 @@ const SEARCH_INDEX_EN: SearchResult[] = [
 ];
 
 const SEARCH_INDEX_FR: SearchResult[] = [
+  // ── @edwinfom/resume-intel v0.2.1 ────────────────────────────────────────
+  { title: 'Introduction', href: '/docs/resume-intel/v0.2.1/fr/introduction', section: 'resume-intel · Démarrage', description: 'Infrastructure de parsing de CV orientée LLM — v0.2.1 avec redaction PII' },
+  { title: 'Installation', href: '/docs/resume-intel/v0.2.1/fr/installation', section: 'resume-intel · Démarrage', description: 'Installer avec npm ou pnpm, choisir votre fournisseur IA' },
+  { title: 'Démarrage rapide', href: '/docs/resume-intel/v0.2.1/fr/quick-start', section: 'resume-intel · Démarrage', description: 'Parsez votre premier CV PDF en moins de 5 minutes' },
+  { title: 'Extraction spatiale', href: '/docs/resume-intel/v0.2.1/fr/spatial-extraction', section: 'resume-intel · Pipeline', description: 'Algorithme de boîtes englobantes pour les mises en page multicolonnes' },
+  { title: 'Fallback OCR', href: '/docs/resume-intel/v0.2.1/fr/ocr-fallback', section: 'resume-intel · Pipeline', description: 'OCR automatique pour les PDFs scannés via Tesseract.js' },
+  { title: 'Décomposition par section', href: '/docs/resume-intel/v0.2.1/fr/task-decomposition', section: 'resume-intel · Pipeline', description: 'Extraction LLM parallèle — 15 sections disponibles' },
+  { title: 'Validation JSON', href: '/docs/resume-intel/v0.2.1/fr/json-validation', section: 'resume-intel · Pipeline', description: 'jsonrepair + Zod + boucle de retry auto-correctrice' },
+  { title: 'DeepSeek', href: '/docs/resume-intel/v0.2.1/fr/provider-deepseek', section: 'resume-intel · Fournisseurs', description: 'Meilleur rapport coût/performance pour l\'extraction' },
+  { title: 'OpenAI', href: '/docs/resume-intel/v0.2.1/fr/provider-openai', section: 'resume-intel · Fournisseurs', description: 'GPT-4o-mini et GPT-4o' },
+  { title: 'Anthropic', href: '/docs/resume-intel/v0.2.1/fr/provider-anthropic', section: 'resume-intel · Fournisseurs', description: 'Claude 3.5 Haiku et Sonnet' },
+  { title: 'Ollama (Local)', href: '/docs/resume-intel/v0.2.1/fr/provider-ollama', section: 'resume-intel · Fournisseurs', description: 'Exécution locale, aucune clé API, aucune donnée ne quitte votre machine' },
+  { title: 'Référence API', href: '/docs/resume-intel/v0.2.1/fr/api-reference', section: 'resume-intel · Référence', description: 'parseResume(), streamResume(), redactPii, options, types de retour' },
+  { title: 'Streaming', href: '/docs/resume-intel/v0.2.1/fr/streaming', section: 'resume-intel · Référence', description: 'streamResume() — mises à jour progressives section par section' },
+  { title: 'Redaction PII', href: '/docs/resume-intel/v0.2.1/fr/pii-redaction', section: 'resume-intel · Référence', description: 'Masquer emails, téléphones, adresses avant le LLM — compatible RGPD' },
+  { title: 'Schéma de sortie', href: '/docs/resume-intel/v0.2.1/fr/output-schema', section: 'resume-intel · Référence', description: 'Spécification JSON Resume v1' },
+  { title: 'CLI', href: '/docs/resume-intel/v0.2.1/fr/cli', section: 'resume-intel · Référence', description: 'resume-intel parse <file.pdf> — parser depuis le terminal' },
+  { title: 'Gestion des erreurs', href: '/docs/resume-intel/v0.2.1/fr/error-handling', section: 'resume-intel · Référence', description: 'ResumeExtractionError, OcrNotEnabledError' },
+  { title: 'Changelog', href: '/docs/resume-intel/v0.2.1/fr/changelog', section: 'resume-intel · Référence', description: 'Historique des versions — v0.2.1, v0.2.0, v0.1.3, v0.1.2, v0.1.0' },
   // ── @edwinfom/resume-intel v0.2.0 ────────────────────────────────────────
-  { title: 'Introduction', href: '/docs/resume-intel/v0.2.0/fr/introduction', section: 'resume-intel · Démarrage', description: 'Infrastructure de parsing de CV orientée LLM' },
-  { title: 'Installation', href: '/docs/resume-intel/v0.2.0/fr/installation', section: 'resume-intel · Démarrage', description: 'Installer avec npm ou pnpm, choisir votre fournisseur IA' },
-  { title: 'Démarrage rapide', href: '/docs/resume-intel/v0.2.0/fr/quick-start', section: 'resume-intel · Démarrage', description: 'Parsez votre premier CV PDF en moins de 5 minutes' },
-  { title: 'Extraction spatiale', href: '/docs/resume-intel/v0.2.0/fr/spatial-extraction', section: 'resume-intel · Pipeline', description: 'Algorithme de boîtes englobantes pour les mises en page multicolonnes' },
-  { title: 'Fallback OCR', href: '/docs/resume-intel/v0.2.0/fr/ocr-fallback', section: 'resume-intel · Pipeline', description: 'OCR automatique pour les PDFs scannés via Tesseract.js' },
-  { title: 'Décomposition par section', href: '/docs/resume-intel/v0.2.0/fr/task-decomposition', section: 'resume-intel · Pipeline', description: 'Extraction LLM parallèle — 15 sections disponibles' },
-  { title: 'Validation JSON', href: '/docs/resume-intel/v0.2.0/fr/json-validation', section: 'resume-intel · Pipeline', description: 'jsonrepair + Zod + boucle de retry auto-correctrice' },
-  { title: 'DeepSeek', href: '/docs/resume-intel/v0.2.0/fr/provider-deepseek', section: 'resume-intel · Fournisseurs', description: 'Meilleur rapport coût/performance pour l\'extraction' },
-  { title: 'OpenAI', href: '/docs/resume-intel/v0.2.0/fr/provider-openai', section: 'resume-intel · Fournisseurs', description: 'GPT-4o-mini et GPT-4o' },
-  { title: 'Anthropic', href: '/docs/resume-intel/v0.2.0/fr/provider-anthropic', section: 'resume-intel · Fournisseurs', description: 'Claude 3.5 Haiku et Sonnet' },
-  { title: 'Ollama (Local)', href: '/docs/resume-intel/v0.2.0/fr/provider-ollama', section: 'resume-intel · Fournisseurs', description: 'Exécution locale, aucune clé API, aucune donnée ne quitte votre machine' },
-  { title: 'Référence API', href: '/docs/resume-intel/v0.2.0/fr/api-reference', section: 'resume-intel · Référence', description: 'parseResume(), streamResume(), options, types de retour' },
-  { title: 'Streaming', href: '/docs/resume-intel/v0.2.0/fr/streaming', section: 'resume-intel · Référence', description: 'streamResume() — mises à jour progressives section par section' },
-  { title: 'Schéma de sortie', href: '/docs/resume-intel/v0.2.0/fr/output-schema', section: 'resume-intel · Référence', description: 'Spécification JSON Resume v1' },
-  { title: 'CLI', href: '/docs/resume-intel/v0.2.0/fr/cli', section: 'resume-intel · Référence', description: 'resume-intel parse <file.pdf> — parser depuis le terminal' },
-  { title: 'Gestion des erreurs', href: '/docs/resume-intel/v0.2.0/fr/error-handling', section: 'resume-intel · Référence', description: 'ResumeExtractionError, OcrNotEnabledError' },
-  { title: 'Changelog', href: '/docs/resume-intel/v0.2.0/fr/changelog', section: 'resume-intel · Référence', description: 'Historique des versions — v0.2.0, v0.1.3, v0.1.2, v0.1.0' },
+  { title: 'Introduction (v0.2.0)', href: '/docs/resume-intel/v0.2.0/fr/introduction', section: 'resume-intel · v0.2.0', description: 'API streaming streamResume()' },
+  { title: 'Streaming (v0.2.0)', href: '/docs/resume-intel/v0.2.0/fr/streaming', section: 'resume-intel · v0.2.0', description: 'streamResume() — mises à jour progressives section par section' },
+  { title: 'Changelog (v0.2.0)', href: '/docs/resume-intel/v0.2.0/fr/changelog', section: 'resume-intel · v0.2.0', description: 'Notes de version' },
   // ── @edwinfom/resume-intel v0.1.3 ────────────────────────────────────────
   { title: 'Introduction (v0.1.3)', href: '/docs/resume-intel/v0.1.3/fr/introduction', section: 'resume-intel · v0.1.3', description: 'Normaliseur de sortie, maxConcurrency, onProgress, ocrLanguage' },
   { title: 'Changelog (v0.1.3)', href: '/docs/resume-intel/v0.1.3/fr/changelog', section: 'resume-intel · v0.1.3', description: 'Notes de version' },
   // ── @edwinfom/resume-intel v0.1.0 ────────────────────────────────────────
   { title: 'Introduction (v0.1.0)', href: '/docs/resume-intel/v0.1.0/fr/introduction', section: 'resume-intel · v0.1.0', description: 'Version initiale' },
-  { title: 'Démarrage rapide (v0.1.0)', href: '/docs/resume-intel/v0.1.0/fr/quick-start', section: 'resume-intel · v0.1.0', description: 'Parsez votre premier CV PDF' },
   { title: 'Changelog (v0.1.0)', href: '/docs/resume-intel/v0.1.0/fr/changelog', section: 'resume-intel · v0.1.0', description: 'Notes de la version initiale' },
   // ── @edwinfom/ai-guard v0.2.1 ────────────────────────────────────────────
   { title: 'Introduction', href: '/docs/ai-guard/v0.2.1/fr/introduction', section: 'ai-guard · Démarrage', description: 'Aperçu de @edwinfom/ai-guard' },
@@ -280,8 +285,8 @@ export default function SearchModal({ lang = 'en' }: SearchModalProps) {
           <div className="search-hints">
             <div className="search-hint-group">
               <span className="search-hint-label">{tRecent}</span>
-              <a href={`/docs/resume-intel/v0.2.0/${lang}/introduction`} className="search-hint-link" onClick={() => setOpen(false)}>
-                Introduction — @edwinfom/resume-intel v0.2.0
+              <a href={`/docs/resume-intel/v0.2.1/${lang}/introduction`} className="search-hint-link" onClick={() => setOpen(false)}>
+                Introduction — @edwinfom/resume-intel v0.2.1
               </a>
               <a href={`/docs/ai-guard/v0.2.1/${lang}/introduction`} className="search-hint-link" onClick={() => setOpen(false)}>
                 Introduction — @edwinfom/ai-guard v0.2.1

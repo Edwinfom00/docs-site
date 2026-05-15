@@ -1,0 +1,111 @@
+---
+title: Changelog
+description: Release history for @edwinfom/resume-intel.
+---
+
+# Changelog
+
+## v0.2.1 — 2026-05-15
+
+### Added
+
+- **`redactPii` option** — redacts personally identifiable information from the resume text before sending it to the LLM, then reinjects the real values into the structured output after extraction.
+
+  Redacted categories: email addresses, phone numbers, physical addresses, and URLs. Each is replaced with a deterministic placeholder (`__PII_EMAIL_0__`, `__PII_URL_1__`, etc.).
+
+  ```typescript
+  const result = await parseResume(buffer, {
+    model,
+    redactPii: true,
+  })
+  // The LLM sees "__PII_EMAIL_0__" instead of "john.doe@gmail.com"
+  // result.data.basics.email is still "john.doe@gmail.com"
+  ```
+
+  Works with both `parseResume()` and `streamResume()`.
+
+- **`confidenceScore` in `sectionResults`** — each section now includes a confidence score (0.0–1.0) based on retry count and field completeness.
+
+  ```typescript
+  for (const s of result.meta.sectionResults ?? []) {
+    console.log(`${s.section}: ${s.confidenceScore}`)
+    // basics: 0.87  work: 1.00  skills: 1.00
+  }
+  ```
+
+- **`redactPii`, `reinjectPii`, `describePiiRedaction` exports** — utility functions for custom redaction pipelines.
+
+### Fixed
+
+- **Zod schema accepts PII placeholders** — `email` and `url` fields now accept `__PII_*__` placeholders during extraction when `redactPii` is active. Previously, `z.string().email()` would reject placeholders and cause the `basics` section to fail after all retries.
+
+---
+
+## v0.2.0 — 2026-05-07
+
+### Added
+
+- **`streamResume()` function** — AsyncGenerator that yields events as each section is extracted.
+
+  ```typescript
+  for await (const event of streamResume(buffer, { model })) {
+    if (event.type === 'section') updateUI(event.section, event.data)
+    if (event.type === 'done') setResult(event.result)
+  }
+  ```
+
+- **`StreamResumeEvent` type export**
+
+### Fixed
+
+- `"2025-01"` → `"2025"` (month-only date padding stripped)
+- `volunteer: []`, `interests: []` → omitted from output
+- Skills with no keywords → filtered out
+- Empty strings in highlights arrays → removed
+
+---
+
+## v0.1.3 — 2026-05-01
+
+### Added
+
+- Output normalizer (date padding, truncated URLs, invalid profiles, "Present" endDate)
+- `maxConcurrency` option
+- `onProgress` callback
+- `ocrLanguage` option
+- `normalizeDate` and `cleanUrl` exports
+
+### Fixed
+
+- Work section missing personal project entries
+- Scan detection false positives on skill-heavy CVs
+
+---
+
+## v0.1.2-hotfix.1 — 2026-04-30
+
+### Fixed
+
+- `disableOcr` option — prevents Tesseract WASM crash on Vercel/Lambda
+
+---
+
+## v0.1.2 — 2026-04-30
+
+### Added
+
+- 15 sections, `sections` option, `outputSchema` option, CLI, serverless worker fix
+
+---
+
+## v0.1.1-beta.1 — 2026-04-28
+
+### Added
+
+- Per-section `maxTokens`, `temperature: 0`, OCR text cleaning, per-section retry, deduplication, `sectionResults`
+
+---
+
+## v0.1.0 — 2026-04-27
+
+Initial release.

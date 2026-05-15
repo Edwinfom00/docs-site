@@ -1,0 +1,123 @@
+---
+title: Task Decomposition
+description: How resume-intel splits extraction into parallel per-section LLM calls to reduce hallucinations and improve reliability.
+---
+
+# Task Decomposition
+
+## The problem with single-shot extraction
+
+Asking a single LLM call to populate the entire JSON Resume schema in one shot has several problems:
+
+- **High cognitive load** — the model must simultaneously extract contact info, work history, education, skills, languages, and projects from a long document
+- **Schema echo** — small models generate a syntactically perfect but empty structure
+- **Cross-section pollution** — projects end up in work experience, languages end up in skills
+- **Token waste** — the full CV text is sent once, but most of it is irrelevant to each section
+
+## How task decomposition works
+
+`resume-intel` runs parallel focused extractions per section. By default, 8 sections run concurrently:
+
+```
+Resume text
+    ↓
+┌─────────┬──────┬───────────┬────────┬───────────┬──────────┬──────────────┬───────────┐
+│ basics  │ work │ education │ skills │ languages │ projects │ certificates │ volunteer │
+│ prompt  │ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+│ schema  │ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+│maxTokens│ ...  │ ...       │ ...    │ ...       │ ...      │ ...          │ ...       │
+└─────────┴──────┴───────────┴────────┴───────────┴──────────┴──────────────┴───────────┘
+    ↓         ↓        ↓         ↓          ↓          ↓             ↓             ↓
+  result    result   result    result     result     result         result        result
+    ↓
+  merge → deduplicate → validate → return
+```
+
+Each section runs concurrently. A failure in one section does not block the others.
+
+## Choosing which sections to extract
+
+By default, 8 sections are extracted. You can override this with the `sections` option:
+
+```typescript
+// Extract only what you need — saves tokens and time
+const result = await parseResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],
+})
+
+// Extract all 12 available sections
+import { ALL_SECTIONS } from '@edwinfom/resume-intel'
+const result = await parseResume(buffer, {
+  model,
+  sections: [...ALL_SECTIONS],
+})
+```
+
+## All 12 available sections
+
+| Section | Max tokens | Content |
+|---|---|---|
+| `basics` | 500 | Name, email, phone, location, summary, profiles |
+| `work` | 1200 | Work experience with highlights |
+| `education` | 600 | Degrees, certifications, courses |
+| `skills` | 400 | Technical skills grouped by category |
+| `languages` | 200 | Spoken languages with proficiency |
+| `projects` | 700 | Personal and side projects |
+| `awards` | 300 | Awards and honors |
+| `certificates` | 300 | Professional certifications |
+| `publications` | 400 | Papers, articles, books |
+| `volunteer` | 450 | Volunteer work and community service |
+| `interests` | 200 | Personal interests and hobbies |
+| `references` | 250 | Professional references |
+
+## Per-section retry
+
+If a section fails Zod validation, it retries independently with the specific error fed back to the LLM:
+
+```
+Section extraction attempt 1
+    fails validation: "work.0.startDate must be YYYY-MM format"
+    ↓
+Section extraction attempt 2 (with correction prompt)
+    passes
+    ↓
+Result merged
+```
+
+A bad `languages` extraction does not cause `work` to retry — only `languages` retries.
+
+## Observability
+
+```typescript
+const result = await parseResume(pdfBuffer, { model })
+
+console.log(result.meta.sectionsRequested)
+// ['basics', 'work', 'education', 'skills', 'languages', 'projects', 'certificates', 'volunteer']
+
+for (const s of result.meta.sectionResults ?? []) {
+  const status  = s.success ? 'OK  ' : 'FAIL'
+  const retries = s.retryCount > 0 ? ` (${s.retryCount} retries)` : ''
+  console.log(`${status} ${s.section}${retries}`)
+}
+```
+
+## Disabling task decomposition
+
+For simple single-column CVs or when using a custom `outputSchema`, single-shot extraction is faster:
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  useTaskDecomposition: false,
+})
+```
+
+## Configuring retries
+
+```typescript
+const result = await parseResume(pdfBuffer, {
+  model,
+  maxRetries: 2, // per-section retry limit (default: 3)
+})
+```

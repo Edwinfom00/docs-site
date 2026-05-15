@@ -1,0 +1,107 @@
+---
+title: Streaming
+description: streamResume() — AsyncGenerator qui yield des événements au fur et à mesure que chaque section est extraite. Mettez à jour votre UI progressivement au lieu d'attendre le résultat complet.
+---
+
+# Streaming
+
+`streamResume()` est un AsyncGenerator qui yield des événements au fur et à mesure que chaque section est extraite. Au lieu d'attendre 15-20 secondes pour le résultat complet, votre UI peut se mettre à jour section par section.
+
+## Utilisation de base
+
+```typescript
+import { streamResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { readFileSync } from 'node:fs'
+
+for await (const event of streamResume(readFileSync('./cv.pdf'), {
+  model: createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })('deepseek-chat'),
+})) {
+  if (event.type === 'section') {
+    console.log(`${event.section} : extrait`)
+    updateUI(event.section, event.data)
+  }
+
+  if (event.type === 'error') {
+    console.warn(`${event.section} : échec — ${event.error}`)
+  }
+
+  if (event.type === 'done') {
+    console.log('Terminé :', event.result.data.basics?.name)
+    console.log('Durée :', event.result.meta.durationMs, 'ms')
+  }
+}
+```
+
+## Types d'événements
+
+```typescript
+type StreamResumeEvent =
+  | { type: 'section'; section: string; data: unknown; success: boolean }
+  | { type: 'error';   section: string; error: string }
+  | { type: 'done';    result: ResumeIntelResult }
+```
+
+| Événement | Quand | Champs |
+|---|---|---|
+| `section` | Après chaque section extraite et normalisée | `section`, `data`, `success` |
+| `error` | Quand une section échoue après tous les retries | `section`, `error` |
+| `done` | Quand toutes les sections sont terminées | `result` (complet `ResumeIntelResult`) |
+
+L'événement `done` est toujours émis en dernier, même si certaines sections ont échoué. Le `result` contient toutes les sections extraites avec succès.
+
+## Exemple Next.js App Router
+
+```typescript
+// app/api/parse-resume/route.ts
+import { streamResume } from '@edwinfom/resume-intel'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+
+export async function POST(req: Request) {
+  const formData = await req.formData()
+  const file = formData.get('file') as File
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  const model = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY! })('deepseek-chat')
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      for await (const event of streamResume(buffer, { model, disableOcr: true })) {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+        if (event.type === 'done') controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'application/x-ndjson' },
+  })
+}
+```
+
+## Options
+
+`streamResume()` accepte les mêmes options que `parseResume()` :
+
+```typescript
+for await (const event of streamResume(buffer, {
+  model,
+  sections: ['basics', 'work', 'education'],
+  maxConcurrency: 3,
+  disableOcr: true,
+  ocrLanguage: 'fra',
+})) { ... }
+```
+
+## Différence avec `parseResume()`
+
+| | `parseResume()` | `streamResume()` |
+|---|---|---|
+| Type de retour | `Promise<ResumeIntelResult>` | `AsyncGenerator<StreamResumeEvent>` |
+| Mises à jour UI | Après la complétion totale | Après chaque section |
+| Gestion des erreurs | Lance une exception en cas d'échec total | Yield des événements `error` par section |
+| Post-traitement | Appliqué avant le retour | Appliqué avant l'événement `done` |
+| Options | Identiques | Identiques |
+
+Les deux fonctions produisent des résultats finaux identiques.
